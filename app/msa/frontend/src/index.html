@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Soldesk Mall</title>
+  <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+  <div class="top-banner">단 하루 특가 · 인기 상품 무료배송 이벤트 진행 중</div>
+
+  <header class="header">
+    <div class="container">
+      <a href="/" class="brand">Soldesk <span class="brand-accent">Mall</span></a>
+      <nav class="nav">
+        <a class="btn btn-secondary" data-guest-only href="/login.html">로그인</a>
+        <a class="btn btn-secondary" data-guest-only href="/signup.html">회원가입</a>
+        <a class="btn btn-primary" data-auth-only style="display:none;" href="/product-create.html">상품등록</a>
+        <div id="userBox"></div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero hero-commerce">
+      <div class="hero-panel hero-promo">
+        <div class="hero-label-row">
+          <span class="hero-kicker">SPRING COLLECTION</span>
+          <span class="hero-badge">오늘 출발</span>
+        </div>
+        <h1>지금 가장 많이 찾는<br>인기 상품 모음</h1>
+        <p>새로 등록된 상품부터 많이 보는 인기 상품까지 한눈에 확인해보세요.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#productSection">상품 보러가기</a>
+          <a class="btn btn-light" data-guest-only href="/signup.html">신규 회원 혜택 보기</a>
+          <a class="btn btn-light" data-auth-only style="display:none;" href="/product-create.html">새 상품 등록</a>
+        </div>
+        <div class="hero-tags">
+          <span>#무료배송</span>
+          <span>#베스트상품</span>
+          <span>#신상입고</span>
+          <span>#빠른배송</span>
+        </div>
+      </div>
+
+      <div class="hero-side hero-side-commerce">
+        <article class="mini-card promo-card dark">
+          <div class="mini-card-overline">MEMBER BENEFIT</div>
+          <div class="mini-card-title">신규 회원 쿠폰</div>
+          <div class="mini-card-text">첫 구매 고객 전용 혜택으로 더 가볍게 시작하세요.</div>
+        </article>
+        <article class="mini-card promo-card light">
+          <div class="mini-card-overline">CURATION</div>
+          <div class="mini-card-title">지금 많이 보는 상품</div>
+          <div class="mini-card-text">실시간으로 관심이 높은 상품을 빠르게 둘러보세요.</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="category-strip" aria-label="카테고리 안내">
+      <div class="category-chip">전체 상품</div>
+      <div class="category-chip">신상품</div>
+      <div class="category-chip">인기 상품</div>
+      <div class="category-chip">빠른 배송</div>
+      <div class="category-chip">추천 상품</div>
+    </section>
+
+    <section id="productSection">
+      <div class="section-head">
+        <div>
+          <div class="section-title">전체 상품</div>
+          <div class="section-sub">마음에 드는 상품을 선택해 자세히 확인해보세요.</div>
+        </div>
+        <div class="section-sub section-count" id="productCount">상품을 불러오는 중</div>
+      </div>
+      <div id="productList" class="grid"></div>
+    </section>
+  </main>
+
+  <footer class="footer container">
+    <div>Soldesk Mall</div>
+    <div class="footer-sub">감각적인 쇼핑을 위한 셀렉션</div>
+  </footer>
+
+  <script src="/assets/app.js"></script>
+  <script>
+    renderHeader();
+    loadProducts();
+  </script>
+</body>
+</html>

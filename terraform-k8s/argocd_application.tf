@@ -1,0 +1,72 @@
+# Argo CD에 GitHub 저장소의 앱 배포 대상 등록
+resource "helm_release" "argocd_application" {
+  name       = "final-apps"
+  repository = "https://argoproj.github.io/argo-helm"
+  chart      = "argocd-apps"
+  version    = "2.0.6"
+
+  namespace = kubernetes_namespace_v1.argocd.metadata[0].name
+
+  values = [
+    yamlencode({
+      applications = {
+        "final-apps" = {
+          namespace = kubernetes_namespace_v1.argocd.metadata[0].name
+          project   = "default"
+
+          # Application 삭제 시 앱 리소스도 함께 정리
+          finalizers = ["resources-finalizer.argocd.argoproj.io"]
+
+          # main 브랜치의 app/msa 배포 설정 사용
+          source = {
+            repoURL        = var.github_repo_url
+            targetRevision = "main"
+            path           = "app/msa"
+          }
+
+          # 현재 EKS의 soldesk 네임스페이스로 배포
+          destination = {
+            server    = "https://kubernetes.default.svc"
+            namespace = kubernetes_namespace_v1.soldesk.metadata[0].name
+          }
+
+          # HPA가 늘리거나 줄인 파드 수를 Argo CD가 되돌리지 않도록 설정
+          ignoreDifferences = [{
+            group        = "apps"
+            kind         = "Deployment"
+            name         = "member-depl"
+            namespace    = kubernetes_namespace_v1.soldesk.metadata[0].name
+            jsonPointers = ["/spec/replicas"]
+          }]
+
+          syncPolicy = {
+            automated = {
+              # 이미지와 앱 Secret 준비 후 true로 변경
+              enabled = var.enable_app_sync
+
+              # 자동 배포를 켜면 Git에서 삭제한 리소스도 삭제
+              prune = true
+
+              # 클러스터 설정이 달라지면 Git 설정으로 복구
+              selfHeal = true
+            }
+
+            # 위의 HPA 제외 설정을 실제 배포에도 반영
+            syncOptions = ["RespectIgnoreDifferences=true"]
+          }
+        }
+      }
+    })
+  ]
+
+  wait        = true
+  timeout     = 600
+  atomic      = true
+  max_history = 3
+
+  # 저장소 인증과 앱 Secret이 준비된 뒤 배포 대상 등록
+  depends_on = [
+    kubernetes_secret_v1.argocd_repository,
+    kubernetes_secret_v1.app
+  ]
+}

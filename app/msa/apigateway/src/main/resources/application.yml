@@ -1,0 +1,12 @@
+spring:
+  profiles:
+    default: prod
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    prometheus:
+      enabled: true
