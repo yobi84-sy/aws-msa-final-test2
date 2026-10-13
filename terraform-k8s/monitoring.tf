@@ -16,6 +16,20 @@ resource "helm_release" "monitoring" {
 
     # AWS 연결 값은 실제 Terraform 생성 결과로 지정
     yamlencode({
+      # 공개 도메인으로 로그인 후 이동할 주소 지정
+      grafana = var.enable_management_ingress ? {
+        "grafana.ini" = {
+          server = {
+            domain   = "grafana.syong.store"
+            root_url = "https://grafana.syong.store"
+          }
+          # 대시보드는 기존 로그인 인증을 유지
+          "auth.anonymous" = {
+            enabled = false
+          }
+        }
+      } : {}
+
       alertmanager = {
         serviceAccount = {
           create = true

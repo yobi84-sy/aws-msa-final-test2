@@ -38,16 +38,22 @@ resource "aws_acm_certificate_validation" "website" {
 }
 
 # 첫 apply에는 ALB가 없으므로 false 유지
-# Kubernetes Ingress로 final-app-alb가 만들어진 뒤 true로 설정
+# Kubernetes Ingress로 공유 ALB가 만들어진 뒤 true로 설정
 variable "enable_website_dns" {
   type    = bool
   default = false
 }
 
 # ALB는 Kubernetes Controller가 생성하고 Terraform은 주소만 조회
+variable "website_alb_name" {
+  type    = string
+  default = "final-shared-alb"
+}
+
+# 공유 ALB로 이전한 뒤 terraform.tfvars에서 이름 변경
 data "aws_lb" "website" {
   count = var.enable_website_dns ? 1 : 0
-  name  = "final-app-alb"
+  name  = var.website_alb_name
 }
 
 # ALB 생성 후 웹사이트 A 레코드 연결

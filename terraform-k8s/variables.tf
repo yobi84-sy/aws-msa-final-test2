@@ -82,3 +82,9 @@ variable "enable_app_sync" {
   type    = bool
   default = false
 }
+
+# 관리 화면 인증서 발급을 완료한 뒤 true로 설정
+variable "enable_management_ingress" {
+  type    = bool
+  default = false
+}

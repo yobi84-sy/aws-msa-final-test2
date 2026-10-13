@@ -12,7 +12,15 @@ resource "helm_release" "argocd" {
 
   values = [
     # 단일 복제, CPU/메모리 제한, 관리 화면 설정 재사용
-    file("${path.module}/../app/msa/k8s/k8s-argocd/argocd-values.yml")
+    file("${path.module}/../app/msa/k8s/k8s-argocd/argocd-values.yml"),
+    # 공유 ALB로 공개할 때 실제 관리 화면 주소 지정
+    yamlencode({
+      configs = {
+        cm = {
+          url = var.enable_management_ingress ? "https://argocd.syong.store" : "https://argocd.example.com"
+        }
+      }
+    })
   ]
 
   # Argo CD 구성 요소가 준비될 때까지 대기

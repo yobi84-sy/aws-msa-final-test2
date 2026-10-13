@@ -8,8 +8,10 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     # ClusterIP 서비스를 사용하면서 파드 IP로 직접 전달
     alb.ingress.kubernetes.io/target-type: ip
-    # Terraform DNS 설정에서 조회할 ALB 이름
-    alb.ingress.kubernetes.io/load-balancer-name: final-app-alb
+    # Argo CD와 Grafana의 Ingress와 같은 ALB 공유
+    alb.ingress.kubernetes.io/group.name: final-shared
+    # Terraform DNS 설정에서 조회할 공유 ALB 이름
+    alb.ingress.kubernetes.io/load-balancer-name: final-shared-alb
     # HTTPS 인증서는 아래 host와 일치하는 발급된 ACM 인증서 자동 조회
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
     # HTTP 요청을 HTTPS로 전환
