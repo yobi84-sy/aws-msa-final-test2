@@ -5,8 +5,19 @@ metadata:
   name: frontend-depl
   namespace: soldesk
 spec:
-  # 우선 단일 Pod로 기본 배포 확인
+  # 비용을 줄이기 위해 평소에는 단일 Pod 유지
   replicas: 1
+
+  # 새 파드를 하나 더 띄우고 준비 완료 후 기존 파드 종료
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  # 새 파드가 Ready를 10초 유지해야 교체 완료로 판단
+  minReadySeconds: 10
+  progressDeadlineSeconds: 300
 
   selector:
     matchLabels:

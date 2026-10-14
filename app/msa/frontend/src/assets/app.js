@@ -1,5 +1,12 @@
 const API_BASE = '';
-const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=80';
+const PLACEHOLDER_IMAGE = '/assets/product-placeholder.svg';
+
+// 상품명과 닉네임을 HTML이 아닌 텍스트로 표시
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, function (character) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character];
+  });
+}
 
 function saveAuth(data) {
   localStorage.setItem('auth', JSON.stringify(data));
@@ -42,7 +49,7 @@ function renderHeader() {
   if (auth) {
     userBox.innerHTML = `
       <div class="user-chip">
-        <span class="user-chip-label">${auth.nickname || auth.name || auth.loginId || auth.email}님</span>
+        <span class="user-chip-label">${escapeHtml(auth.nickname || auth.name || auth.loginId || auth.email || '회원')}님</span>
         <button class="btn btn-dark" id="logoutBtn" type="button">로그아웃</button>
       </div>
     `;
@@ -102,7 +109,7 @@ function formatPrice(value) {
 }
 
 function getProductDetailUrl(productId) {
-  return `/product-detail.html?id=${productId}`;
+  return `/product-detail.html?id=${encodeURIComponent(productId)}`;
 }
 
 function goToProductDetail(productId) {
@@ -134,6 +141,10 @@ async function loadProducts() {
 
   try {
     const products = await apiRequest('/product-service/product/list', { method: 'GET', headers: {} });
+    // 프록시 오류로 HTML 등이 반환돼도 상품 개수로 잘못 표시하지 않음
+    if (!Array.isArray(products)) {
+      throw new Error('상품 목록 응답 형식이 올바르지 않습니다.');
+    }
     const countEl = document.getElementById('productCount');
     if (countEl) {
       countEl.textContent = `총 ${products.length}개의 상품`;
@@ -146,24 +157,28 @@ async function loadProducts() {
 
     productList.innerHTML = products.map(function (product) {
       return `
-        <article class="card card-link" onclick="goToProductDetail(${product.id})" role="button" tabindex="0">
+        <a class="card card-link" href="${escapeHtml(getProductDetailUrl(product.id))}">
           <div class="card-image-wrap">
-            <img src="${getImageUrl(product.imageUrl)}" alt="${product.name}">
+            <img src="${escapeHtml(getImageUrl(product.imageUrl))}" alt="${escapeHtml(product.name)}" loading="lazy" onerror="this.onerror=null;this.src='/assets/product-placeholder.svg'">
             ${buildStockBadge(product.stockQuantity)}
           </div>
           <div class="card-body">
             <div class="card-meta-row">
-              <span class="card-meta">${product.category || '전체 카테고리'}</span>
+              <span class="card-meta">${escapeHtml(product.category || '전체 카테고리')}</span>
             </div>
-            <div class="card-title">${product.name}</div>
+            <div class="card-title">${escapeHtml(product.name)}</div>
             <div class="card-price">${formatPrice(product.price)}</div>
-            <div class="card-sub">재고 ${product.stockQuantity}개</div>
-            <div class="card-description">${product.description || '등록된 상품 설명이 없습니다.'}</div>
+            <div class="card-sub">재고 ${escapeHtml(product.stockQuantity)}개</div>
+            <div class="card-description">${escapeHtml(product.description || '등록된 상품 설명이 없습니다.')}</div>
           </div>
-        </article>
+        </a>
       `;
     }).join('');
   } catch (error) {
+    const countEl = document.getElementById('productCount');
+    if (countEl) {
+      countEl.textContent = '목록을 확인해주세요';
+    }
     productList.innerHTML = '<div class="empty">상품 목록을 불러오지 못했습니다.</div>';
   }
 }
@@ -190,18 +205,18 @@ async function loadProductDetail() {
   }
 
   try {
-    const product = await apiRequest(`/product-service/product/${productId}`, { method: 'GET', headers: {} });
+    const product = await apiRequest(`/product-service/product/${encodeURIComponent(productId)}`, { method: 'GET', headers: {} });
     target.innerHTML = `
       <section class="detail-card">
         <div class="detail-image-wrap">
-          <img class="detail-image" src="${getImageUrl(product.imageUrl)}" alt="${product.name}">
+          <img class="detail-image" src="${escapeHtml(getImageUrl(product.imageUrl))}" alt="${escapeHtml(product.name)}" onerror="this.onerror=null;this.src='/assets/product-placeholder.svg'">
         </div>
         <div class="detail-content">
-          <div class="detail-category">${product.category || '전체 카테고리'}</div>
-          <h1 class="detail-title">${product.name}</h1>
+          <div class="detail-category">${escapeHtml(product.category || '전체 카테고리')}</div>
+          <h1 class="detail-title">${escapeHtml(product.name)}</h1>
           <div class="detail-price">${formatPrice(product.price)}</div>
-          <div class="detail-stock" id="detailStock">재고: ${product.stockQuantity}개</div>
-          <p class="detail-description">${product.description || '상품 설명이 없습니다.'}</p>
+          <div class="detail-stock" id="detailStock">재고: ${escapeHtml(product.stockQuantity)}개</div>
+          <p class="detail-description">${escapeHtml(product.description || '상품 설명이 없습니다.')}</p>
           <div class="detail-actions">
             <button class="btn btn-primary btn-large" id="purchaseBtn" type="button" ${product.stockQuantity < 1 ? 'disabled' : ''}>구매하기</button>
             <a class="btn btn-light btn-large" href="/">메인으로</a>
