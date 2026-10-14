@@ -1,6 +1,6 @@
 # kube-prometheus-stack Helm 차트 92.3.0용 실습 설정
 # 기존 개별 Prometheus/Grafana YAML과 동시에 설치하지 않음
-# 실제 설치 및 사용량 확인은 EKS 생성 후 진행
+# 실제 EKS 사용량을 기준으로 요청량을 지정하고 실습 후에도 확인
 
 # EKS에서 직접 접근할 수 없는 관리 영역의 수집은 끔
 kubeEtcd:
@@ -51,7 +51,8 @@ prometheus:
     resources:
       requests:
         cpu: 100m
-        memory: 256Mi
+        # 관측 사용량 약 413Mi에 여유를 두어 노드 배치 시 반영
+        memory: 512Mi
       limits:
         cpu: '1'
         memory: 1Gi
@@ -60,7 +61,7 @@ grafana:
   # 단일 EBS를 다른 노드의 새 파드가 동시에 연결하지 않도록 교체 순서 지정
   deploymentStrategy:
     type: Recreate
-  # 관리 화면은 외부 ALB 대신 kubectl port-forward로 접속
+  # 외부 접속용 공유 ALB Ingress는 Terraform에서 별도로 관리
   ingress:
     enabled: false
   service:
@@ -78,7 +79,8 @@ grafana:
   resources:
     requests:
       cpu: 100m
-      memory: 128Mi
+      # 관측 사용량 약 377Mi에 여유를 두어 다른 파드의 과밀 배치 방지
+      memory: 512Mi
     limits:
       cpu: 500m
       memory: 512Mi
@@ -87,7 +89,8 @@ grafana:
     resources:
       requests:
         cpu: 20m
-        memory: 32Mi
+        # 보조 컨테이너 각각 약 80Mi 사용: 두 컨테이너에 각각 적용
+        memory: 96Mi
       limits:
         cpu: 100m
         memory: 128Mi
