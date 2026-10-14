@@ -24,5 +24,5 @@ images:
   - name: 143710973003.dkr.ecr.ap-northeast-2.amazonaws.com/apigateway
     newTag: 7a8ead5e1a0f9ae01fc740d263a4e87a32ffc656
   - name: 143710973003.dkr.ecr.ap-northeast-2.amazonaws.com/frontend-service
-    newTag: 7a8ead5e1a0f9ae01fc740d263a4e87a32ffc656
+    newTag: fb1b6d340f24ccaeaca6ae1bd05e1ed020a6a21b
 
