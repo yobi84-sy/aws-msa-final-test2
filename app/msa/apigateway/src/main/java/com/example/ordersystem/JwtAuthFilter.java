@@ -48,6 +48,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                 return reject(exchange, HttpStatus.UNAUTHORIZED);
             }
             boolean adminOnly = path.equals("/member-service/member/admin-check")
+                    || path.startsWith("/member-service/member/admin/")
                     || path.equals("/product-service/product/create");
             if (adminOnly && !"ADMIN".equals(role)) return reject(exchange, HttpStatus.FORBIDDEN);
             return chain.filter(clean.mutate().request(b -> b.headers(h -> {

@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - product/k8s/serviceaccount.yml
   - ordering/k8s/serviceaccount.yml
+  - member/k8s/dashboard-access.yml
   - member/k8s/depl_svc.yml
   - product/k8s/depl_svc.yml
   - ordering/k8s/depl_svc.yml

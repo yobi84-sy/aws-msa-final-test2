@@ -31,6 +31,10 @@ class JwtAuthFilterTest {
                 .header("Authorization", "Bearer " + token("USER")));
         filter.filter(create, ex -> fail("customer must not register products")).block();
         assertEquals(HttpStatus.FORBIDDEN, create.getResponse().getStatusCode());
+        var summary = MockServerWebExchange.from(MockServerHttpRequest.get("/member-service/member/admin/summary")
+                .header("Authorization", "Bearer " + token("USER")));
+        filter.filter(summary, ex -> fail("customer must not read operational data")).block();
+        assertEquals(HttpStatus.FORBIDDEN, summary.getResponse().getStatusCode());
     }
 
     @Test void adminCookieIsAcceptedOnlyForReadCheck() {

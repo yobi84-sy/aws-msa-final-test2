@@ -17,6 +17,8 @@ spec:
       labels:
         app: member
     spec:
+      # Argo CD 상태 조회에 필요한 읽기 전용 ServiceAccount
+      serviceAccountName: member-dashboard
       # 복제 수가 증가하면 노드별 파드 수가 고르게 배치되도록 유도
       topologySpreadConstraints:
         - maxSkew: 1
@@ -75,7 +77,7 @@ spec:
             secretKeyRef:
               name: my-app-secrets
               key: DB_PW
-        # 컨테이너 상태 확인 
+        # 컨테이너 상태 확인
         # Java 애플리케이션 시작을 약 3분까지 기다림
         startupProbe:
           httpGet:
@@ -120,4 +122,3 @@ spec:
     targetPort: 8080
   selector:
     app: member
-  

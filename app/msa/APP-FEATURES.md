@@ -1,5 +1,45 @@
 # 간단한 스토어 기능 추가
 
+## 4차 배포 준비: 관리자 운영 대시보드
+
+관리자 페이지를 바로가기 모음에서 요약 대시보드로 변경했다. 아래 기능은 로컬 코드와 테스트까지 준비한 상태이며 Git push 후 새 버전 배포가 필요하다.
+
+- DB: 전체 회원·상품·상품별 주문 기록·남은 재고 합계. 고객 개인정보와 DB 접속 정보는 반환하지 않는다.
+- 모니터링: Grafana health 응답, Prometheus의 Ready 노드·soldesk 파드 수.
+- 배포: Argo CD final-apps의 Sync·Health 상태와 반영 커밋.
+- 화면: 수동 새로고침과 1분 자동 갱신. 실패한 조회값은 — / 확인 불가로 표시.
+
+추가한 Kubernetes 권한은 member-dashboard ServiceAccount가 argocd 네임스페이스의 final-apps Application 하나를 get하는 것뿐이다. Secret 조회·리소스 수정 권한은 없다. Role과 RoleBinding은 앱의 Kustomize 배포 목록에 포함했다.
+
+Terraform 변경이나 Grafana·Argo CD 비밀번호 등록은 필요하지 않다. Grafana의 상세 화면과 Argo CD의 개별 로그인은 그대로 사용한다. 기존 관리자 비밀번호를 다시 설정할 필요도 없다.
+
+```powershell
+Set-Location 'C:\aws-msa-backend-terraform'
+git diff -- app/msa
+git add app/msa
+git commit -m "Add admin operational dashboard"
+git push origin main
+```
+
+Actions 이미지 빌드와 Argo CD의 새 버전 배포가 끝난 뒤 확인한다.
+
+```powershell
+kubectl get applications -n argocd
+kubectl get pods -n soldesk
+```
+
+관리자로 로그인하고 `/admin.html`을 Ctrl+F5로 새로고침한다. 상품 등록이나 주문 후 새로고침하면 DB 집계가 달라져야 한다. Ready 노드·파드 수는 Prometheus 수집 시점 때문에 kubectl과 잠시 차이가 날 수 있다.
+
+일반 회원은 `/member-service/member/admin/summary`를 호출해도 거부되어야 한다. Argo CD 카드가 확인 불가라면 아래 읽기 권한을 확인한다.
+
+```powershell
+kubectl auth can-i get applications.argoproj.io/final-apps -n argocd --as=system:serviceaccount:soldesk:member-dashboard
+```
+
+로컬 검증: 회원 서비스 Admin 테스트, Gateway 권한 테스트, 프런트엔드 대시보드·장바구니 테스트를 통과했다. 실제 DB·Prometheus·Kubernetes API 연결은 배포 후 별도로 확인한다. 화면 미리보기에는 테스트용 예시값을 사용했다.
+
+---
+
 관리자 페이지·장바구니·운영자 주문 알림은 배포 후 동작을 확인했다. 아래 내용은 환경을 다시 준비하거나 설정을 변경할 때 참고할 절차다.
 
 프로젝트 설명은 [README](../../README.md), 배포 흐름은 [배포 자동화](../../docs/02-deployment.md)를 참고한다.
