@@ -62,3 +62,16 @@ AWS 인증에는 GitHub Actions용 OIDC와 앱용 ServiceAccount 연결 IAM 역�
 ---
 
 [프로젝트 홈](../README.md) · [이전: 프로젝트 구성](01-architecture.md) · [다음: 모니터링과 실습 결과](03-monitoring-and-tests.md)
+
+
+## test 브랜치의 개선 CI
+
+`test` push/수동 실행과 PR은 선택한 서비스의 테스트·로컬 이미지 빌드까지만 수행한다. OIDC 권한은 main의 publish job에만 부여하며 Terraform의 OIDC 신뢰 조건과 Argo CD targetRevision도 main을 유지한다.
+
+서비스별 src·테스트·Gradle·Dockerfile·NGINX 변경을 감지한다. main 게시 대상은 각 서비스의 현재 이미지 태그 커밋부터 비교해, 이전 게시 실패나 연속 push로 아직 반영되지 않은 변경도 포함한다. 기존 태그가 SHA가 아니거나 Git에서 찾을 수 없으면 해당 서비스를 다시 빌드한다. test/PR은 해당 Git diff를 기준으로 검증한다. 공통 앱 파일과 CI 스크립트·workflow 변경은 전체를 선택하고, 순수 k8s/문서/이미지 태그 변경은 이미지를 다시 만들지 않는다. 태그 봇 커밋은 빈 선택 결과로 종료돼 반복 게시하지 않는다. rename/delete도 이전 경로와 새 경로 모두 고려한다. 수동 `full_build=true`로 첫 구축 및 전체 검증을 지원한다.
+
+모든 선택 서비스의 테스트 job이 성공한 뒤에만 main의 publish job이 시작된다. member는 관리자·health group 테스트, product는 H2 동시 재고 테스트, ordering은 주문·알림 테스트, gateway는 전체 테스트, frontend는 Node 기존 테스트를 사용한다. 운영 MySQL/AWS에 의존하는 나머지 context 테스트는 이 CI 범위에서 제외하며 운영 통합 성공으로 해석하지 않는다. frontend NGINX 설정도 로컬 컨테이너로 검사한다.
+
+이미지 게시가 모두 성공한 후 해당 서비스의 Kustomize 태그만 변경한다. 원본 커밋이 이미 main의 최신이 아니면 게시 전에 중단하며, 마지막 Git push는 force 없이 수행해 최신 변경을 덮어쓰지 않는다. 게시 도중 네트워크 실패 시 일부 ECR 이미지가 남을 수 있지만 Git 태그 갱신은 수행하지 않는다. main에 중간 커밋이 생겨 push가 거부되면 해당 변경이 포함되도록 수동 전체 빌드를 다시 실행한다.
+
+Actions 성공 → 태그 커밋 → Argo CD Synced/Healthy 및 revision 확인 → HTTPS 점검은 서로 다른 단계다. [실행 순서](06-monday-runbook.md)를 참고한다.

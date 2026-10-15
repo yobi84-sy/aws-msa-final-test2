@@ -13,6 +13,10 @@ resource "aws_eks_cluster" "main" {
   version  = var.cluster_version
   role_arn = var.cluster_role_arn
 
+  # 관리 API·감사·인증 로그를 활성화하고 로그 그룹을 먼저 준비합니다.
+  enabled_cluster_log_types = ["api", "audit", "authenticator"]
+  depends_on                = [aws_cloudwatch_log_group.control_plane]
+
   # IPv4 기반 Pod 네트워크 사용
   kubernetes_network_config {
     ip_family = "ipv4"
@@ -70,4 +74,11 @@ resource "aws_eks_access_policy_association" "admin" {
   access_scope {
     type = "cluster"
   }
+}
+
+# EKS가 자동 생성하기 전에 보관 기간을 명시합니다. 기존 그룹은 먼저 import하세요.
+resource "aws_cloudwatch_log_group" "control_plane" {
+  name              = "/aws/eks/${var.cluster_name}/cluster"
+  retention_in_days = 14
+  tags              = { Name = "${var.cluster_name}-control-plane" }
 }

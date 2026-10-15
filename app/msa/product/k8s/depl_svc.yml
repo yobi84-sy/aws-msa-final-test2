@@ -59,25 +59,25 @@ spec:
           # Java 애플리케이션 시작을 약 3분까지 기다림
           startupProbe:
             httpGet:
-              path: /health
+              path: /actuator/health/liveness
               port: 8080
             periodSeconds: 10
             timeoutSeconds: 2
             failureThreshold: 18
 
-          # 응답 가능한 Pod에만 Service 트래픽 전달
+          # DB를 포함한 준비 상태가 정상일 때만 Service 트래픽 전달
           readinessProbe:
             httpGet:
-              path: /health
+              path: /actuator/health/readiness
               port: 8080
             periodSeconds: 10
             timeoutSeconds: 2
             failureThreshold: 3
 
-          # 시작 완료 후 응답 실패가 반복되면 컨테이너 재시작
+          # DB와 무관한 생존 상태 실패가 반복될 때만 컨테이너 재시작
           livenessProbe:
             httpGet:
-              path: /health
+              path: /actuator/health/liveness
               port: 8080
             periodSeconds: 10
             timeoutSeconds: 2

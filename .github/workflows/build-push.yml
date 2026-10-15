@@ -1,69 +1,129 @@
-# Git 저장소 루트가 C:\aws-msa-backend-terraform일 때 사용하는 GitHub Actions 템플릿
-# 이후 .github/workflows/build-push.yml로 복사하고 AWS_ROLE_TO_ASSUME 변수를 연결
-# GitHub OIDC용 AWS 역할은 Terraform 후속 단계에서 준비하며 정적 키는 사용하지 않음
-name: Build and publish app images
+name: Test and publish changed services
 on:
   workflow_dispatch:
+    inputs:
+      full_build:
+        description: '전체 5개 서비스 테스트 및 빌드 (게시 권한은 main만)'
+        type: boolean
+        default: true
   push:
-    branches: [main]
+    branches: [main, test]
     paths:
-      - 'app/msa/member/src/**'
-      - 'app/msa/product/src/**'
-      - 'app/msa/ordering/src/**'
-      - 'app/msa/apigateway/src/**'
-      - 'app/msa/frontend/src/**'
-      - 'app/msa/frontend/nginx/**'
-      - 'app/msa/**/Dockerfile'
-      - 'app/msa/**/build.gradle'
-      - 'app/msa/**/settings.gradle'
-      - 'app/msa/**/gradle/**'
-      - 'app/msa/**/gradlew'
+      - 'app/msa/**'
+      - 'scripts/ci/**'
+      - 'tests/**'
+      - '.github/workflows/build-push.yml'
+  pull_request:
+    branches: [main, test]
 permissions:
-  contents: write
-  id-token: write
+  contents: read
+# main 게시 작업끼리 직렬화하며 test/PR은 별도 그룹입니다.
 concurrency:
-  group: final-app-images
+  group: app-images-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  build:
+  changes:
     runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.select.outputs.services }}
     steps:
       - uses: actions/checkout@v7
-      - name: Check AWS role configuration
+        with:
+          fetch-depth: 0
+      - name: Test build selection and tag updates
+        run: python3 -m unittest discover -s tests -v
+      - id: select
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          FULL: ${{ github.event_name == 'workflow_dispatch' && inputs.full_build }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$FULL" = true ]; then
+            python3 scripts/ci/changed_services.py --all
+          elif [ "$REF" = refs/heads/main ] && [ "$EVENT" != pull_request ]; then
+            python3 scripts/ci/changed_services.py --since-image-tags
+          elif [ "$EVENT" = workflow_dispatch ]; then
+            python3 scripts/ci/changed_services.py --base HEAD^ --head HEAD
+          else
+            python3 scripts/ci/changed_services.py --base "$BASE" --head HEAD
+          fi
+  test:
+    needs: changes
+    if: needs.changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.changes.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run existing local tests and package
+        run: bash scripts/ci/test-service.sh '${{ matrix.service }}'
+      - name: Build image without publishing
+        run: docker build --platform linux/amd64 -t local-check:${{ matrix.service }} app/msa/${{ matrix.service }}
+      - name: Check frontend NGINX configuration
+        if: matrix.service == 'frontend'
+        run: docker run --rm --add-host apigateway-service:127.0.0.1 local-check:frontend nginx -t
+  publish:
+    needs: [changes, test]
+    # test push・PR・test에서의 수동 실행은 AWS 인증 단계에도 들어가지 않습니다.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.test.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Reject stale build and check role
         env:
           AWS_ROLE: ${{ vars.AWS_ROLE_TO_ASSUME }}
-        run: test -n "$AWS_ROLE"
+        run: |
+          set -euo pipefail
+          test -n "$AWS_ROLE"
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$GITHUB_SHA"
       - uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
           role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
           aws-region: ap-northeast-2
           allowed-account-ids: '143710973003'
       - uses: aws-actions/amazon-ecr-login@v2
-      - name: Build and push five images
+      - name: Build selected images, publish, then update selected tags
         env:
-          IMAGE_TAG: ${{ github.sha }}
+          SERVICES_JSON: ${{ needs.changes.outputs.services }}
         shell: bash
         run: |
           set -euo pipefail
+          mapfile -t services < <(python3 -c 'import json,os; print("\n".join(json.loads(os.environ["SERVICES_JSON"])))')
           registry=143710973003.dkr.ecr.ap-northeast-2.amazonaws.com
-          for pair in member:member-service product:product-service ordering:ordering-service apigateway:apigateway frontend:frontend-service; do
-            folder=${pair%%:*}
-            repo=${pair##*:}
-            image="$registry/$repo:$IMAGE_TAG"
-            docker build --platform linux/amd64 -t "$image" "app/msa/$folder"
-            docker push "$image"
+          for service in "${services[@]}"; do
+            repo="$service-service"
+            if [ "$service" = apigateway ]; then repo=apigateway; fi
+            docker build --platform linux/amd64 -t "$registry/$repo:$GITHUB_SHA" "app/msa/$service"
           done
-      - name: Update deployment image tags
-        env:
-          IMAGE_TAG: ${{ github.sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          sed -i "s/^    newTag: .*/    newTag: $IMAGE_TAG/" app/msa/kustomization.yaml
+          # 모든 관련 테스트와 이미지 빌드 성공 후에만 게시합니다.
+          for service in "${services[@]}"; do
+            repo="$service-service"
+            if [ "$service" = apigateway ]; then repo=apigateway; fi
+            docker push "$registry/$repo:$GITHUB_SHA"
+          done
+          python3 scripts/ci/update_image_tags.py --tag "$GITHUB_SHA" "${services[@]}"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add app/msa/kustomization.yaml
           if ! git diff --cached --quiet; then
-            git commit -m "Update deployment images to $IMAGE_TAG"
-            git push
+            git commit -m "Update selected deployment images to $GITHUB_SHA"
+            # force push 금지: 중간에 main이 바뀌면 실패시켜 오래된 태그 반영을 차단합니다.
+            git push origin HEAD:main
           fi

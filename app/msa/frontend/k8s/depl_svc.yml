@@ -5,8 +5,8 @@ metadata:
   name: frontend-depl
   namespace: soldesk
 spec:
-  # 비용을 줄이기 위해 평소에는 단일 Pod 유지
-  replicas: 1
+  # 노드 점검 중에도 하나가 남도록 두 파드 운영
+  replicas: 2
 
   # 새 파드를 하나 더 띄우고 준비 완료 후 기존 파드 종료
   strategy:
@@ -33,7 +33,7 @@ spec:
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
-          whenUnsatisfiable: ScheduleAnyway
+          whenUnsatisfiable: DoNotSchedule
           labelSelector:
             matchLabels:
               app: frontend
@@ -56,6 +56,22 @@ spec:
             limits:
               cpu: "500m"
               memory: "256Mi"
+
+          # 정적 파일 제공 여부만 확인하며 Gateway/DB 장애와 분리합니다.
+          startupProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
 
           # NGINX가 화면을 제공할 준비가 됐는지 확인
           # 준비되지 않은 Pod에는 Service 트래픽을 보내지 않음
@@ -82,3 +98,16 @@ spec:
 
   selector:
     app: frontend
+
+---
+# 자발적 축출 시 최소 한 파드를 유지합니다. 노드 장애나 rollout 자체를 제어하지는 않습니다.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend-pdb
+  namespace: soldesk
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: frontend

@@ -14,7 +14,7 @@
 `C:\aws-msa-backend-terraform\app\msa\frontend\k8s\depl_svc.yml`:
 
 ```yaml
-replicas: 1
+replicas: 2
 strategy:
   type: RollingUpdate
   rollingUpdate:
@@ -92,3 +92,12 @@ git push origin main
 ## 로컬 확인 범위
 
 Docker 이미지 빌드/NGINX 설정, JS 구문, Kustomize 렌더링, 데스크톱/휴대폰 폭의 메인·로그인·회원가입·상품 상세 표시를 확인했다. 로컬 미리보기의 예제 상품은 별도 컨테이너 설정에만 있으며 Git 소스와 배포 이미지에 포함하지 않는다. 실제 회원가입/상품등록/주문 API의 동작은 배포 후 테스트 계정으로 확인한다.
+
+
+## 두 파드와 PDB
+
+현재 `frontend-pdb`는 `minAvailable: 1`이다. Eviction API를 사용하는 drain 등 **자발적 축출** 때 Ready 파드 하나를 남기지만, 노드 장애·직접 Pod 삭제·Deployment의 RollingUpdate는 막지 않는다. 파드 두 개만으로 모든 장애에서 무중단을 보장하지 않는다.
+
+호스트명 기준 `maxSkew: 1`, `DoNotSchedule`로 정상적인 두 노드 이상 환경에서 분산한다. 이는 서로 다른 AZ 배치의 보장은 아니다. 사용 가능한 노드가 하나라면 같은 노드 배치도 가능하며, 노드가 여러 개 있어도 자원 부족·스케줄링 제약으로 Pending이 될 수 있다. 실제 `-o wide` 결과를 확인한다.
+
+기본 request는 2개 합계 CPU 100m·메모리 128Mi (단일 파드보다 50m·64Mi 추가), limit 합계 CPU 1·메모리 512Mi다. 롤링 중 최대 3개로 request 150m·192Mi, limit CPU 1.5·768Mi까지 필요하다. 종료 중인 파드까지 포함하면 일시적으로 더 사용할 수 있다. 노드 시스템·다른 앱·모니터링 여유도 남겨야 한다. Pending일 때 PDB를 무작정 삭제하기보다 노드 자원을 먼저 확인한다.

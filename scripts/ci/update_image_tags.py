@@ -1,0 +1,26 @@
+"""선택한 이미지의 태그만 변경하고 다른 이미지의 태그는 보존합니다."""
+import argparse
+import re
+from pathlib import Path
+
+IMAGES = {s: s + "-service" for s in ("member", "product", "ordering", "frontend")}
+IMAGES["apigateway"] = "apigateway"
+
+def update(text, services, tag):
+    if not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}", tag):
+        raise ValueError("잘못된 이미지 태그")
+    for service in services:
+        image = IMAGES[service]
+        pattern = r"(^  - name: 143710973003\.dkr\.ecr\.ap-northeast-2\.amazonaws\.com/" + image + r"\n    newTag: )[^\n]+"
+        text, count = re.subn(pattern, lambda m: m[1] + tag, text, flags=re.M)
+        if count != 1:
+            raise ValueError(f"이미지 항목은 정확히 하나여야 합니다: {service}")
+    return text
+
+if __name__ == "__main__":
+    p = argparse.ArgumentParser()
+    p.add_argument("--tag", required=True)
+    p.add_argument("services", nargs="+", choices=list(IMAGES))
+    args = p.parse_args()
+    path = Path("app/msa/kustomization.yaml")
+    path.write_text(update(path.read_text(), args.services, args.tag))

@@ -1,10 +1,12 @@
-# 기존 AWS 인프라의 Terraform 결과 조회
-# AWS 폴더에서 apply를 완료한 뒤 사용할 수 있음
+# 먼저 terraform 루트의 apply를 완료해야 합니다. 다른 state 키를 참조하지 않도록 고정.
 data "terraform_remote_state" "infra" {
-  backend = "local"
-
+  backend = "s3"
   config = {
-    # 상대 경로를 절대 경로로 변환
-    path = abspath("${path.module}/../terraform/terraform.tfstate")
+    bucket              = "final-tfstate-143710973003-ap-northeast-2"
+    key                 = "final/infra/terraform.tfstate"
+    region              = "ap-northeast-2"
+    profile             = var.aws_profile
+    encrypt             = true
+    allowed_account_ids = ["143710973003"]
   }
 }

@@ -51,3 +51,7 @@ Helm·Kustomize는 [배포 자동화](docs/02-deployment.md), EBS는 [프로젝�
 웹사이트·Grafana·Argo CD는 공유 ALB와 개별 도메인으로 연결했습니다. 실습 인프라를 삭제한 동안에는 접속되지 않습니다.
 
 단일 파드와 Single-AZ RDS 등을 포함한 실습 구성으로, 모든 장애에서 무중단을 보장하는 구조는 아닙니다.
+
+## 개선 코드 적용 안내
+
+`test` 브랜치 개선 사항의 초기 구축·재구축·삭제 순서는 [월요일 PowerShell 실행 안내](docs/06-monday-runbook.md)를 기준으로 진행합니다. main 반영과 실제 AWS 적용은 별도 작업입니다.

@@ -79,5 +79,6 @@ resource "kubernetes_ingress_v1" "management" {
   }
 
   # 두 도구의 설치를 완료한 뒤 관리 화면 공개
-  depends_on = [helm_release.argocd, helm_release.monitoring]
+  # 삭제 시에도 Ingress finalizer 처리가 끝날 때까지 Controller를 유지합니다.
+  depends_on = [helm_release.argocd, helm_release.monitoring, helm_release.load_balancer_controller]
 }
