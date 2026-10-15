@@ -11,8 +11,8 @@ module "monitoring" {
   order_dlq_name   = module.messaging.order_notifications_dlq_name
 
   db_instance_identifier = module.rds.db_instance_identifier
-  # 노드 생성 및 종료 알림에 사용할 ASG 이름 목록 전달
-  node_group_asg_names = module.eks.node_group_asg_names
+  # 노드 풀별 ASG를 전달하여 생성·종료 알림을 각각 관리
+  node_group_asgs = module.eks.notification_node_groups
 
   # Alertmanager의 ServiceAccount 기반 AWS 인증에 사용
   oidc_provider_arn = module.eks.oidc_provider_arn

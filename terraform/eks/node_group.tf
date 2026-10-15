@@ -1,5 +1,13 @@
-# 애플리케이션 Pod가 실행될 관리형 노드그룹
+# 기존 상태 주소를 보존하여 전환 준비 단계에서 삭제/재생성하지 않음
+moved {
+  from = aws_eks_node_group.main
+  to   = aws_eks_node_group.main[0]
+}
+
+# 전환 중에만 유지하는 기존 다중 AZ 노드그룹
 resource "aws_eks_node_group" "main" {
+  count = var.keep_legacy_node_group ? 1 : 0
+
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${var.cluster_name}-nodes"
 

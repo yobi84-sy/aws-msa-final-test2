@@ -1,3 +1,8 @@
+locals {
+  # AWS 준비 적용 전에는 기존 자동 탐색 설정 유지
+  autoscaler_node_groups = try(data.terraform_remote_state.infra.outputs.autoscaler_node_groups, {})
+}
+
 # 배치하지 못한 파드가 생기면 노드 확장을 판단하는 CA 설치
 resource "helm_release" "cluster_autoscaler" {
   name       = "cluster-autoscaler"
@@ -16,10 +21,21 @@ resource "helm_release" "cluster_autoscaler" {
       cloudProvider = "aws"
       awsRegion     = var.aws_region
 
-      # 현재 클러스터의 자동 확장 태그를 가진 ASG 탐색
+      # AZ별 그룹 전환 후에는 명시한 새 그룹만 관리
       autoDiscovery = {
-        clusterName = var.cluster_name
+        clusterName = length(local.autoscaler_node_groups) > 0 ? "" : var.cluster_name
       }
+
+      autoscalingGroups = [
+        for group in values(local.autoscaler_node_groups) : {
+          name    = group.asg_name
+          minSize = group.min_size
+          maxSize = group.max_size
+        }
+      ]
+
+      # 높은 우선순위의 CA가 2c의 Grafana를 밀어내지 않도록 분리
+      nodeSelector = length(local.autoscaler_node_groups) > 0 ? { "final-node-pool" = "az-a" } : {}
 
       # EKS와 같은 Kubernetes 마이너 버전 사용
       image = {

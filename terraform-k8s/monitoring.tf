@@ -1,3 +1,32 @@
+locals {
+  # 새 AWS 출력이 준비된 다음 적용해야 새 노드 라벨로 배치 가능
+  use_zonal_monitoring = length(local.autoscaler_node_groups) > 0
+
+  # Grafana와 Prometheus를 같은 작은 노드에 함께 배치하지 않음
+  monitoring_anti_affinity = {
+    podAntiAffinity = {
+      requiredDuringSchedulingIgnoredDuringExecution = [{
+        topologyKey = "kubernetes.io/hostname"
+        labelSelector = {
+          matchExpressions = [
+            {
+              key      = "app.kubernetes.io/name"
+              operator = "In"
+              values   = ["grafana", "prometheus"]
+            },
+            {
+              # Operator가 만든 Prometheus는 Helm 릴리스와 instance 라벨이 다름
+              key      = "app.kubernetes.io/instance"
+              operator = "In"
+              values   = ["monitoring", "monitoring-kube-prometheus-prometheus"]
+            }
+          ]
+        }
+      }]
+    }
+  }
+}
+
 # Prometheus, Grafana, Alertmanager 설치
 resource "helm_release" "monitoring" {
   name       = "monitoring"
@@ -17,7 +46,7 @@ resource "helm_release" "monitoring" {
     # AWS 연결 값은 실제 Terraform 생성 결과로 지정
     yamlencode({
       # 공개 도메인으로 로그인 후 이동할 주소 지정
-      grafana = var.enable_management_ingress ? {
+      grafana = merge(var.enable_management_ingress ? {
         "grafana.ini" = {
           server = {
             domain   = "grafana.syong.store"
@@ -28,9 +57,27 @@ resource "helm_release" "monitoring" {
             enabled = false
           }
         }
-      } : {}
+        } : {}, {
+        # 기존 Grafana EBS와 같은 2c 그룹 사용
+        nodeSelector = local.use_zonal_monitoring ? { "final-node-pool" = "az-c" } : {}
+        affinity     = local.use_zonal_monitoring ? local.monitoring_anti_affinity : null
+      })
+
+      prometheus = {
+        prometheusSpec = {
+          nodeSelector = local.use_zonal_monitoring ? { "final-node-pool" = "az-c" } : {}
+          affinity     = local.use_zonal_monitoring ? local.monitoring_anti_affinity : null
+          # 차트 기본 규칙이 사용자 podAntiAffinity를 덮어쓰지 않도록 비활성화
+          podAntiAffinity = local.use_zonal_monitoring ? "" : "soft"
+        }
+      }
 
       alertmanager = {
+        # 기존 Alertmanager EBS가 있는 2a 그룹 사용
+        alertmanagerSpec = {
+          nodeSelector = local.use_zonal_monitoring ? { "final-node-pool" = "az-a" } : {}
+        }
+
         serviceAccount = {
           create = true
 

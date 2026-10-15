@@ -28,9 +28,9 @@ variable "db_instance_identifier" {
   type = string
 }
 
-# 노드 생성·종료 알림을 설정할 Auto Scaling Group 목록
-variable "node_group_asg_names" {
-  type = list(string)
+# 노드 풀 이름을 키로 사용하여 그룹별 알림의 상태 주소를 유지
+variable "node_group_asgs" {
+  type = map(string)
 }
 
 # Alertmanager의 ServiceAccount 토큰을 신뢰할 OIDC Provider

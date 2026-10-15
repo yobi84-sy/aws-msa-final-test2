@@ -92,6 +92,12 @@ variable "eks_node_max_size" {
   default = 5
 }
 
+# 전환 완료 후 false: 새로 구축할 때도 AZ별 그룹만 생성
+variable "keep_legacy_node_group" {
+  type    = bool
+  default = false
+}
+
 # 서비스별 Docker 이미지를 저장할 ECR 저장소 이름
 variable "ecr_repository_names" {
   type = set(string)
@@ -123,6 +129,12 @@ variable "db_password" {
   type      = string
   sensitive = true
   ephemeral = true
+
+  # RDS MySQL의 관리자 비밀번호 길이 제한을 AWS 요청 전에 확인
+  validation {
+    condition     = length(var.db_password) >= 8 && length(var.db_password) <= 41
+    error_message = "RDS MySQL 비밀번호는 8~41자로 입력하세요."
+  }
 }
 
 # 상품 이미지용 버킷 이름

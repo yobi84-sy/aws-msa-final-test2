@@ -52,3 +52,28 @@ variable "node_min_size" {
 variable "node_max_size" {
   type = number
 }
+
+# 새 그룹으로 파드를 옮길 때까지 기존 그룹 유지
+variable "keep_legacy_node_group" {
+  type = bool
+}
+
+# 각 AZ의 서브넷과 노드 수 범위
+variable "node_pools" {
+  type = map(object({
+    subnet_id         = string
+    availability_zone = string
+    desired_size      = number
+    min_size          = number
+    max_size          = number
+  }))
+
+  validation {
+    condition = alltrue([
+      for pool in values(var.node_pools) :
+      pool.min_size >= 1 && pool.desired_size >= pool.min_size && pool.max_size >= pool.desired_size &&
+      floor(pool.min_size) == pool.min_size && floor(pool.desired_size) == pool.desired_size && floor(pool.max_size) == pool.max_size
+    ])
+    error_message = "노드 수는 양의 정수이며 min_size <= desired_size <= max_size여야 합니다."
+  }
+}
