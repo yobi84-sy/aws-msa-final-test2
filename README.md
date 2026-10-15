@@ -8,7 +8,7 @@ Terraform으로 AWS 인프라를 구성하고, GitHub Actions와 Argo CD로 앱�
 
 ## 프로젝트 문서
 
-전체 내용을 한 페이지에 넣기보다 주제별로 나눴습니다.
+전체 내용을 한 페이지에 넣기보다 주제별로 나눴습니다. 처음 보는 기술도 따라갈 수 있도록 **역할 → 사용한 이유 → 실습 결과** 순서로 설명했습니다.
 
 | 페이지 | 내용 |
 | --- | --- |
@@ -21,6 +21,8 @@ Terraform으로 AWS 인프라를 구성하고, GitHub Actions와 Argo CD로 앱�
 [배포 이력·이미지 태그](docs/RELEASES.md) · [이전 버전으로 롤백](docs/ROLLBACK.md)
 
 ## 사용 기술
+
+Helm·Kustomize는 [배포 자동화](docs/02-deployment.md), EBS는 [프로젝트 구성](docs/01-architecture.md), SNS·SQS·CloudWatch·CloudTrail은 [모니터링과 실습 결과](docs/03-monitoring-and-tests.md)에서 쉽게 풀어 설명했습니다.
 
 - **인프라:** Terraform · VPC · EKS · IAM · ALB · Route 53 · ACM
 - **배포:** Docker · ECR · GitHub Actions · Argo CD · Helm · Kustomize
