@@ -1,0 +1,226 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1650" viewBox="0 0 2400 1650">
+<defs>
+ <marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="none" stroke="#677d96" stroke-width="1.5"/></marker>
+ <marker id="purple" markerWidth="9" markerHeight="9" refX="8" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="none" stroke="#8b5bc1" stroke-width="1.5"/></marker>
+</defs>
+<g font-family="Malgun Gothic, 맑은 고딕, Arial, sans-serif">
+<rect width="2400" height="1650" fill="#f7f9fc"/>
+
+<text x="48" y="65" font-size="36" fill="#20334c" font-weight="800" text-anchor="start">SYONG STORE</text>
+<text x="355" y="65" font-size="34" fill="#20334c" font-weight="700" text-anchor="start">AWS · EKS 프로젝트 구성도</text>
+<text x="48" y="105" font-size="21" fill="#607087" font-weight="400" text-anchor="start">실제 Terraform 설정과 배포 구조를 기준으로 정리한 운영 실습 아키텍처</text>
+<text x="2320" y="72" font-size="20" fill="#607087" font-weight="400" text-anchor="end">2026.10.15</text>
+<rect x="290" y="150" width="1820" height="1160" rx="22" fill="#fff" stroke="#9daec2" stroke-width="2"/>
+<rect x="315" y="132" width="265" height="48" rx="12" fill="#fff3e4" stroke="#f4b45e" stroke-width="1.5"/>
+<text x="337" y="165" font-size="23" fill="#a45d0c" font-weight="700" text-anchor="start">AWS  |  서울 리전</text>
+<text x="590" y="165" font-size="18" fill="#607087" font-weight="400" text-anchor="start">ap-northeast-2</text>
+<rect x="350" y="190" width="360" height="65" rx="12" fill="#fff" stroke="#d5dfeb" stroke-width="1.5"/>
+<g transform="translate(365 207) scale(0.875)">
+<rect width="48" height="48" rx="11" fill="#8b5bc1"/>
+<g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m24 8 14 6v12c0 9-14 15-14 15S10 35 10 26V14zM17 24l5 5 10-11"/></g></g>
+<text x="420" y="227" font-size="20" fill="#20334c" font-weight="700" text-anchor="start">ACM 인증서</text>
+<text x="420" y="255" font-size="16" fill="#607087" font-weight="400" text-anchor="start"></text>
+<text x="1095" y="226" font-size="20" fill="#3d648f" font-weight="700" text-anchor="start">EKS Control Plane · AWS 관리</text>
+<text x="1635" y="227" font-size="22" fill="#20334c" font-weight="700" text-anchor="start">저장 · 감사 · 운영 알림</text>
+<rect x="330" y="275" width="1240" height="990" rx="20" fill="#fcfffd" stroke="#57a37d" stroke-width="2"/>
+<rect x="350" y="259" width="315" height="43" rx="10" fill="#edf8f0" stroke="#91c6a8" stroke-width="1.5"/>
+<text x="372" y="288" font-size="22" fill="#2f7652" font-weight="700" text-anchor="start">VPC  10.42.0.0/16</text>
+<text x="810" y="318" font-size="21" fill="#3b6750" font-weight="700" text-anchor="start">한 클러스터 · 두 가용 영역 · 공유 ALB</text>
+<rect x="355" y="350" width="580" height="870" rx="17" fill="#fbfcff" stroke="#d5ac66" stroke-width="2" stroke-dasharray="9 6"/>
+<text x="377" y="383" font-size="20" fill="#a6701d" font-weight="700" text-anchor="start">Availability Zone  /  ap-northeast-2a</text>
+<rect x="375" y="405" width="540" height="185" rx="12" fill="#f3f8ff" stroke="#bbd0ea" stroke-width="1.5"/>
+<text x="392" y="430" font-size="16" fill="#50739b" font-weight="700" text-anchor="start">PUBLIC SUBNET</text>
+<text x="597" y="430" font-size="16" fill="#607087" font-weight="400" text-anchor="start">10.42.1.0/24</text>
+<rect x="375" y="620" width="540" height="385" rx="12" fill="#f4faf5" stroke="#a8cdb1" stroke-width="1.5"/>
+<text x="392" y="646" font-size="17" fill="#447954" font-weight="700" text-anchor="start">PRIVATE SUBNET  ·  10.42.11.0/24</text>
+<rect x="375" y="1030" width="540" height="165" rx="12" fill="#f7f7fd" stroke="#cbc7e7" stroke-width="1.5"/>
+<text x="392" y="1056" font-size="17" fill="#6d619b" font-weight="700" text-anchor="start">DB SUBNET  ·  10.42.21.0/24</text>
+<rect x="965" y="350" width="580" height="870" rx="17" fill="#fbfcff" stroke="#d5ac66" stroke-width="2" stroke-dasharray="9 6"/>
+<text x="987" y="383" font-size="20" fill="#a6701d" font-weight="700" text-anchor="start">Availability Zone  /  ap-northeast-2c</text>
+<rect x="985" y="405" width="540" height="185" rx="12" fill="#f3f8ff" stroke="#bbd0ea" stroke-width="1.5"/>
+<text x="1002" y="430" font-size="16" fill="#50739b" font-weight="700" text-anchor="start">PUBLIC SUBNET</text>
+<text x="1207" y="430" font-size="16" fill="#607087" font-weight="400" text-anchor="start">10.42.2.0/24</text>
+<rect x="985" y="620" width="540" height="385" rx="12" fill="#f4faf5" stroke="#a8cdb1" stroke-width="1.5"/>
+<text x="1002" y="646" font-size="17" fill="#447954" font-weight="700" text-anchor="start">PRIVATE SUBNET  ·  10.42.12.0/24</text>
+<rect x="985" y="1030" width="540" height="165" rx="12" fill="#f7f7fd" stroke="#cbc7e7" stroke-width="1.5"/>
+<text x="1002" y="1056" font-size="17" fill="#6d619b" font-weight="700" text-anchor="start">DB SUBNET  ·  10.42.22.0/24</text>
+<rect x="40" y="255" width="220" height="100" rx="12" fill="#fff" stroke="#d5dfeb" stroke-width="1.5"/>
+<g transform="translate(55 272) scale(0.875)">
+<rect width="48" height="48" rx="11" fill="#8b5bc1"/>
+<g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 24h26M24 10v28M11 24l7-7m-7 7 7 7m19-7-7-7m7 7-7 7M24 10l-6 6m6-6 6 6M24 38l-6-6m6 6 6-6"/></g></g>
+<text x="110" y="292" font-size="20" fill="#20334c" font-weight="700" text-anchor="start">Route 53</text>
+<text x="110" y="320" font-size="16" fill="#607087" font-weight="400" text-anchor="start">DNS 별칭</text>
+<rect x="40" y="420" width="220" height="100" rx="12" fill="#fff" stroke="#d5dfeb" stroke-width="1.5"/>
+<g transform="translate(55 437) scale(0.875)">
+<rect width="48" height="48" rx="11" fill="#627a94"/>
+<g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="15" r="8"/><path d="M10 39v-7c0-13 28-13 28 0v7"/></g></g>
+<text x="110" y="457" font-size="20" fill="#20334c" font-weight="700" text-anchor="start">사용자</text>
+<text x="110" y="485" font-size="16" fill="#607087" font-weight="400" text-anchor="start">브라우저 · HTTPS</text>
+<path d="M150 420 V355" fill="none" stroke="#677d96" stroke-width="2" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
+<text x="166" y="390" font-size="15" fill="#607087" font-weight="400" text-anchor="start">DNS 조회</text>
+<path d="M260 305 H635 V438" fill="none" stroke="#677d96" stroke-width="2" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
+<text x="465" y="330" font-size="15" fill="#607087" font-weight="400" text-anchor="start">도메인 해석</text>
+<g transform="translate(285 443) scale(1.0)">
+<rect width="48" height="48" rx="11" fill="#ed8b23"/>
+<g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 24h26M24 10v28M11 24l7-7m-7 7 7 7m19-7-7-7m7 7-7 7M24 10l-6 6m6-6 6 6M24 38l-6-6m6 6 6-6"/></g></g>
+<text x="309" y="515" font-size="17" fill="#20334c" font-weight="700" text-anchor="middle">IGW</text>
+<path d="M260 465 H284" fill="none" stroke="#677d96" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M334 465 H650" fill="none" stroke="#677d96" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="450" y="452" font-size="18" fill="#607087" font-weight="400" text-anchor="start">HTTPS :443</text>
+<rect x="650" y="440" width="580" height="94" rx="14" fill="#fff4e7" stroke="#efad55" stroke-width="2"/>
+<g transform="translate(668 456) scale(1.0)">
+<rect width="48" height="48" rx="11" fill="#ee8b21"/>
+<g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 24h26M24 10v28M11 24l7-7m-7 7 7 7m19-7-7-7m7 7-7 7M24 10l-6 6m6-6 6 6M24 38l-6-6m6 6 6-6"/></g></g>
+<text x="733" y="472" font-size="22" fill="#995b0f" font-weight="700" text-anchor="start">공유 Application Load Balancer</text>
+<text x="733" y="500" font-size="17" fill="#8d6a40" font-weight="400" text-anchor="start">server · grafana · argocd.syong.store</text>
+<rect x="402" y="537" width="220" height="42" rx="9" fill="#fffaf0" stroke="#e8c38a" stroke-width="1.5"/>
+<text x="512" y="565" font-size="18" fill="#a0702c" font-weight="700" text-anchor="middle">NAT Gateway × 1</text>
+<text x="1020" y="564" font-size="17" fill="#607087" font-weight="400" text-anchor="start">ALB는 두 퍼블릭 서브넷 사용</text>
+<text x="395" y="611" font-size="16" fill="#667c6b" font-weight="400" text-anchor="start">아웃바운드: 두 프라이빗 서브넷 → 2a의 NAT → IGW</text>
+<rect x="390" y="665" width="1130" height="318" rx="15" fill="#fff" stroke="#eaa64e" stroke-width="2" stroke-dasharray="7 5"/>
+<text x="410" y="692" font-size="22" fill="#b06a13" font-weight="700" text-anchor="start">Amazon EKS  |  Final-eks</text>
+<text x="1497" y="691" font-size="16" fill="#607087" font-weight="400" text-anchor="end">앱은 노드 그룹 전체에 스케줄링</text>
+<path d="M940 534 V710 H500 V720" fill="none" stroke="#677d96" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M705 710 V720" fill="none" stroke="#677d96" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="410" y="720" width="180" height="66" rx="9" fill="#fff8ed" stroke="#efc98b" stroke-width="1.5"/>
+<text x="500" y="746" font-size="19" fill="#97601a" font-weight="700" text-anchor="middle">Frontend</text>
+<text x="500" y="772" font-size="15" fill="#887256" font-weight="400" text-anchor="middle">Nginx</text>
+<rect x="615" y="720" width="180" height="66" rx="9" fill="#fff8ed" stroke="#efc98b" stroke-width="1.5"/>
+<text x="705" y="746" font-size="19" fill="#97601a" font-weight="700" text-anchor="middle">API Gateway</text>
+<text x="705" y="772" font-size="15" fill="#887256" font-weight="400" text-anchor="middle">JWT 인증·라우팅</text>
+<rect x="880" y="720" width="180" height="66" rx="9" fill="#fff8ed" stroke="#efc98b" stroke-width="1.5"/>
+<text x="970" y="746" font-size="19" fill="#97601a" font-weight="700" text-anchor="middle">Member</text>
+<text x="970" y="772" font-size="15" fill="#887256" font-weight="400" text-anchor="middle">회원</text>
+<rect x="1085" y="720" width="180" height="66" rx="9" fill="#fff8ed" stroke="#efc98b" stroke-width="1.5"/>
+<text x="1175" y="746" font-size="19" fill="#97601a" font-weight="700" text-anchor="middle">Product</text>
+<text x="1175" y="772" font-size="15" fill="#887256" font-weight="400" text-anchor="middle">상품·재고·이미지</text>
+<rect x="1290" y="720" width="180" height="66" rx="9" fill="#fff8ed" stroke="#efc98b" stroke-width="1.5"/>
+<text x="1380" y="746" font-size="19" fill="#97601a" font-weight="700" text-anchor="middle">Ordering</text>
+<text x="1380" y="772" font-size="15" fill="#887256" font-weight="400" text-anchor="middle">주문·SNS 알림</text>
+<path d="M590 752 H615" fill="none" stroke="#677d96" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M705 786 V800 H1380" fill="none" stroke="#677d96" stroke-width="2" stroke-linejoin="round"/>
+<path d="M970 800 V786" fill="none" stroke="#677d96" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M1175 800 V786" fill="none" stroke="#677d96" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M1380 800 V786" fill="none" stroke="#677d96" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="800" y="822" font-size="15" fill="#607087" font-weight="400" text-anchor="start">앱 서비스 통신</text>
+<rect x="410" y="838" width="480" height="125" rx="11" fill="#f2f7fd" stroke="#b8cce7" stroke-width="1.5"/>
+<g transform="translate(427 855) scale(0.8333333333333334)">
+<rect width="48" height="48" rx="11" fill="#e98b22"/>
+<g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="12" width="24" height="24" rx="3"/><path d="M18 7v5m12-5v5M18 36v5m12-5v5M7 18h5m-5 12h5m24-12h5m-5 12h5"/></g></g>
+<text x="480" y="878" font-size="21" fill="#20334c" font-weight="700" text-anchor="start">노드 그룹  az-a</text>
+<text x="480" y="907" font-size="18" fill="#607087" font-weight="400" text-anchor="start">t3.small  ·  최소 2 / 최대 2</text>
+<text x="430" y="941" font-size="17" fill="#526880" font-weight="400" text-anchor="start">Alertmanager + EBS  /  운영 도구·앱</text>
+<rect x="995" y="838" width="500" height="125" rx="11" fill="#f2f7fd" stroke="#b8cce7" stroke-width="1.5"/>
+<g transform="translate(1012 855) scale(0.8333333333333334)">
+<rect width="48" height="48" rx="11" fill="#e98b22"/>
+<g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="12" width="24" height="24" rx="3"/><path d="M18 7v5m12-5v5M18 36v5m12-5v5M7 18h5m-5 12h5m24-12h5m-5 12h5"/></g></g>
+<text x="1066" y="878" font-size="21" fill="#20334c" font-weight="700" text-anchor="start">노드 그룹  az-c</text>
+<text x="1066" y="907" font-size="18" fill="#607087" font-weight="400" text-anchor="start">t3.small  ·  최소 2 / 최대 3</text>
+<text x="1015" y="941" font-size="16" fill="#526880" font-weight="400" text-anchor="start">Grafana · Prometheus + EBS (서로 다른 노드)</text>
+<text x="423" y="1020" font-size="17" fill="#4f735b" font-weight="400" text-anchor="start">HPA → 파드 수 조절   |   Cluster Autoscaler → 노드 수 조절</text>
+<text x="645" y="1115" font-size="23" fill="#8d8aa2" font-weight="700" text-anchor="middle">DB 서브넷만 구성</text>
+<text x="645" y="1149" font-size="18" fill="#8d8aa2" font-weight="400" text-anchor="middle">RDS 대기 인스턴스 없음</text>
+<rect x="1000" y="1071" width="480" height="108" rx="12" fill="#fff" stroke="#d5dfeb" stroke-width="1.5"/>
+<g transform="translate(1015 1088) scale(0.875)">
+<rect width="48" height="48" rx="11" fill="#507bcc"/>
+<g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="24" cy="13" rx="13" ry="6"/><path d="M11 13v23c0 8 26 8 26 0V13M11 24c0 8 26 8 26 0"/></g></g>
+<text x="1070" y="1108" font-size="20" fill="#20334c" font-weight="700" text-anchor="start">RDS MySQL</text>
+<text x="1070" y="1136" font-size="16" fill="#607087" font-weight="400" text-anchor="start">db.t4g.micro  ·  Single-AZ</text>
+<text x="1017" y="1162" font-size="15" fill="#607087" font-weight="400" text-anchor="start">회원·상품·주문 공유  /  외부 직접 접근 차단</text>
+<path d="M1480 754 H1538 V1125 H1480" fill="none" stroke="#677d96" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="1502" y="1155" font-size="15" fill="#607087" font-weight="400" text-anchor="start">3306</text>
+<text x="391" y="1239" font-size="16" fill="#607087" font-weight="400" text-anchor="start">공유 ALB의 별도 호스트 경로 → Grafana / Argo CD</text>
+<text x="391" y="1260" font-size="15" fill="#607087" font-weight="400" text-anchor="start">운영 도구: Load Balancer Controller · EBS CSI · Metrics Server · Cluster Autoscaler</text>
+<rect x="1625" y="275" width="450" height="104" rx="12" fill="#fff" stroke="#d5dfeb" stroke-width="1.5"/>
+<g transform="translate(1640 292) scale(0.875)">
+<rect width="48" height="48" rx="11" fill="#559d52"/>
+<g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="24" cy="12" rx="14" ry="5"/><path d="m10 12 4 25c1 7 19 7 20 0l4-25M17 22h14"/></g></g>
+<text x="1695" y="312" font-size="20" fill="#20334c" font-weight="700" text-anchor="start">Amazon S3</text>
+<text x="1695" y="340" font-size="16" fill="#607087" font-weight="400" text-anchor="start">상품 이미지 / CloudTrail 로그 버킷</text>
+<text x="1642" y="362" font-size="15" fill="#607087" font-weight="400" text-anchor="start">상품 이미지 접근: S3 Gateway Endpoint 사용</text>
+<rect x="1625" y="417" width="450" height="95" rx="12" fill="#fff" stroke="#d5dfeb" stroke-width="1.5"/>
+<g transform="translate(1640 434) scale(0.875)">
+<rect width="48" height="48" rx="11" fill="#559d52"/>
+<g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m24 8 14 6v12c0 9-14 15-14 15S10 35 10 26V14zM17 24l5 5 10-11"/></g></g>
+<text x="1695" y="454" font-size="20" fill="#20334c" font-weight="700" text-anchor="start">AWS CloudTrail</text>
+<text x="1695" y="482" font-size="16" fill="#607087" font-weight="400" text-anchor="start">AWS 관리 API 작업 이력</text>
+<path d="M1850 417 V379" fill="none" stroke="#8b5bc1" stroke-width="2" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#purple)"/>
+<rect x="1625" y="550" width="450" height="102" rx="12" fill="#fff" stroke="#d5dfeb" stroke-width="1.5"/>
+<g transform="translate(1640 567) scale(0.875)">
+<rect width="48" height="48" rx="11" fill="#8b5bc1"/>
+<g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 10v29h29M15 32l8-10 7 5 9-15"/></g></g>
+<text x="1695" y="587" font-size="20" fill="#20334c" font-weight="700" text-anchor="start">Amazon CloudWatch</text>
+<text x="1695" y="615" font-size="16" fill="#607087" font-weight="400" text-anchor="start">RDS 지표 · SQS 지연 · DLQ 경보</text>
+<path d="M1850 652 V690" fill="none" stroke="#8b5bc1" stroke-width="2" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#purple)"/>
+<rect x="1625" y="690" width="450" height="133" rx="12" fill="#fff" stroke="#d5dfeb" stroke-width="1.5"/>
+<g transform="translate(1640 707) scale(0.875)">
+<rect width="48" height="48" rx="11" fill="#cb5187"/>
+<g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="13" width="30" height="23" rx="3"/><path d="m10 15 14 12 14-12"/></g></g>
+<text x="1695" y="727" font-size="20" fill="#20334c" font-weight="700" text-anchor="start">SNS  운영 알림</text>
+<text x="1695" y="755" font-size="16" fill="#607087" font-weight="400" text-anchor="start">Final-operations-alerts</text>
+<text x="1642" y="806" font-size="15" fill="#607087" font-weight="400" text-anchor="start">CloudWatch / Alertmanager / ASG / 주문 알림</text>
+<rect x="2150" y="705" width="215" height="110" rx="12" fill="#fff" stroke="#d5dfeb" stroke-width="1.5"/>
+<g transform="translate(2165 722) scale(0.875)">
+<rect width="48" height="48" rx="11" fill="#627a94"/>
+<g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="13" width="30" height="23" rx="3"/><path d="m10 15 14 12 14-12"/></g></g>
+<text x="2220" y="742" font-size="20" fill="#20334c" font-weight="700" text-anchor="start">운영자</text>
+<text x="2220" y="770" font-size="16" fill="#607087" font-weight="400" text-anchor="start">구독 이메일</text>
+<path d="M2075 756 H2150" fill="none" stroke="#8b5bc1" stroke-width="2" stroke-linejoin="round" marker-end="url(#purple)"/>
+<text x="2160" y="842" font-size="16" fill="#607087" font-weight="400" text-anchor="start">AWS 외부 수신자</text>
+<text x="1630" y="872" font-size="19" fill="#7b536e" font-weight="700" text-anchor="start">메시지 전달·실패 처리 실습 경로</text>
+<rect x="1625" y="893" width="450" height="80" rx="12" fill="#fff" stroke="#d5dfeb" stroke-width="1.5"/>
+<g transform="translate(1640 910) scale(0.875)">
+<rect width="48" height="48" rx="11" fill="#cb5187"/>
+<g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="13" width="30" height="23" rx="3"/><path d="m10 15 14 12 14-12"/></g></g>
+<text x="1695" y="930" font-size="20" fill="#20334c" font-weight="700" text-anchor="start">SNS  주문 이벤트</text>
+<text x="1695" y="958" font-size="16" fill="#607087" font-weight="400" text-anchor="start">Final-order-events</text>
+<path d="M1850 973 V1006" fill="none" stroke="#677d96" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="1625" y="1006" width="450" height="80" rx="12" fill="#fff" stroke="#d5dfeb" stroke-width="1.5"/>
+<g transform="translate(1640 1023) scale(0.875)">
+<rect width="48" height="48" rx="11" fill="#cb5187"/>
+<g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="10" y="10" width="28" height="28" rx="3"/><path d="M16 18h16M16 24h16M16 30h10"/></g></g>
+<text x="1695" y="1043" font-size="20" fill="#20334c" font-weight="700" text-anchor="start">SQS  주문 알림 큐</text>
+<text x="1695" y="1071" font-size="16" fill="#607087" font-weight="400" text-anchor="start">Final-order-notifications</text>
+<path d="M1850 1086 V1122" fill="none" stroke="#677d96" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="1870" y="1110" font-size="15" fill="#607087" font-weight="400" text-anchor="start">최대 수신 5회 이후</text>
+<rect x="1625" y="1122" width="450" height="80" rx="12" fill="#fff" stroke="#d5dfeb" stroke-width="1.5"/>
+<g transform="translate(1640 1139) scale(0.875)">
+<rect width="48" height="48" rx="11" fill="#cb5187"/>
+<g fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="10" y="10" width="28" height="28" rx="3"/><path d="M16 18h16M16 24h16M16 30h10"/></g></g>
+<text x="1695" y="1159" font-size="20" fill="#20334c" font-weight="700" text-anchor="start">SQS  DLQ</text>
+<text x="1695" y="1187" font-size="16" fill="#607087" font-weight="400" text-anchor="start">Final-order-notifications-dlq</text>
+<text x="1630" y="1243" font-size="17" fill="#7b536e" font-weight="700" text-anchor="start">앱 주문 메일은 운영 SNS로 직접 발행</text>
+<text x="1630" y="1271" font-size="15" fill="#607087" font-weight="400" text-anchor="start">위 SQS 경로는 별도로 검증한 메시징 실습 구성</text>
+<rect x="290" y="1350" width="1820" height="175" rx="18" fill="#eef4fc" stroke="#b9cee8" stroke-width="1.5"/>
+<text x="320" y="1384" font-size="22" fill="#3f668f" font-weight="700" text-anchor="start">CI/CD  |  코드에서 클러스터까지</text>
+<rect x="320" y="1405" width="265" height="92" rx="11" fill="#fff" stroke="#c5d6eb" stroke-width="1.5"/>
+<text x="452" y="1442" font-size="20" fill="#3e628b" font-weight="700" text-anchor="middle">GitHub</text>
+<text x="452" y="1474" font-size="16" fill="#607087" font-weight="400" text-anchor="middle">코드 push</text>
+<path d="M585 1451 H615" fill="none" stroke="#677d96" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="615" y="1405" width="265" height="92" rx="11" fill="#fff" stroke="#c5d6eb" stroke-width="1.5"/>
+<text x="747" y="1442" font-size="20" fill="#3e628b" font-weight="700" text-anchor="middle">GitHub Actions</text>
+<text x="747" y="1474" font-size="16" fill="#607087" font-weight="400" text-anchor="middle">OIDC · 이미지 빌드</text>
+<path d="M880 1451 H910" fill="none" stroke="#677d96" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="910" y="1405" width="265" height="92" rx="11" fill="#fff" stroke="#c5d6eb" stroke-width="1.5"/>
+<text x="1042" y="1442" font-size="20" fill="#3e628b" font-weight="700" text-anchor="middle">Amazon ECR</text>
+<text x="1042" y="1474" font-size="16" fill="#607087" font-weight="400" text-anchor="middle">이미지 업로드</text>
+<path d="M1175 1451 H1205" fill="none" stroke="#677d96" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="1205" y="1405" width="265" height="92" rx="11" fill="#fff" stroke="#c5d6eb" stroke-width="1.5"/>
+<text x="1337" y="1442" font-size="20" fill="#3e628b" font-weight="700" text-anchor="middle">Git / Kustomize</text>
+<text x="1337" y="1474" font-size="16" fill="#607087" font-weight="400" text-anchor="middle">커밋별 태그 갱신</text>
+<path d="M1470 1451 H1500" fill="none" stroke="#677d96" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="1500" y="1405" width="265" height="92" rx="11" fill="#fff" stroke="#c5d6eb" stroke-width="1.5"/>
+<text x="1632" y="1442" font-size="20" fill="#3e628b" font-weight="700" text-anchor="middle">Argo CD</text>
+<text x="1632" y="1474" font-size="16" fill="#607087" font-weight="400" text-anchor="middle">동기화</text>
+<path d="M1765 1451 H1795" fill="none" stroke="#677d96" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="1795" y="1405" width="265" height="92" rx="11" fill="#fff" stroke="#c5d6eb" stroke-width="1.5"/>
+<text x="1927" y="1442" font-size="20" fill="#3e628b" font-weight="700" text-anchor="middle">Amazon EKS</text>
+<text x="1927" y="1474" font-size="16" fill="#607087" font-weight="400" text-anchor="middle">롤링 배포</text>
+<text x="320" y="1572" font-size="19" fill="#526880" font-weight="700" text-anchor="start">Terraform: AWS 인프라 / EKS 내부 운영 도구 분리 관리</text>
+<path d="M320 1612 H375" fill="none" stroke="#677d96" stroke-width="2" stroke-linejoin="round"/>
+<text x="390" y="1618" font-size="17" fill="#607087" font-weight="400" text-anchor="start">서비스·배포 흐름</text>
+<path d="M680 1612 H735" fill="none" stroke="#8b5bc1" stroke-width="2" stroke-linejoin="round" stroke-dasharray="6 5"/>
+<text x="750" y="1618" font-size="17" fill="#607087" font-weight="400" text-anchor="start">DNS·알림·감사 연계</text>
+<text x="2080" y="1572" font-size="17" fill="#607087" font-weight="400" text-anchor="end">실습 범위: NAT 1개 · RDS Single-AZ · SQS 소비자 미구현</text>
+<text x="2080" y="1618" font-size="16" fill="#607087" font-weight="400" text-anchor="end">가독성을 위해 일부 내부 연결과 관리형 서비스 경로 생략</text>
+</g></svg>
