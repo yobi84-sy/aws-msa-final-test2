@@ -17,13 +17,13 @@ resources:
 # CI에서 Git 커밋별 이미지 태그로 변경할 위치
 images:
   - name: 143710973003.dkr.ecr.ap-northeast-2.amazonaws.com/member-service
-    newTag: 58ab067dd239160afc60941cf14aee5830ca5840
+    newTag: 222cef0a5d6da9607fca8117dee09290bc5f0952
   - name: 143710973003.dkr.ecr.ap-northeast-2.amazonaws.com/product-service
-    newTag: 58ab067dd239160afc60941cf14aee5830ca5840
+    newTag: 222cef0a5d6da9607fca8117dee09290bc5f0952
   - name: 143710973003.dkr.ecr.ap-northeast-2.amazonaws.com/ordering-service
-    newTag: 58ab067dd239160afc60941cf14aee5830ca5840
+    newTag: 222cef0a5d6da9607fca8117dee09290bc5f0952
   - name: 143710973003.dkr.ecr.ap-northeast-2.amazonaws.com/apigateway
-    newTag: 58ab067dd239160afc60941cf14aee5830ca5840
+    newTag: 222cef0a5d6da9607fca8117dee09290bc5f0952
   - name: 143710973003.dkr.ecr.ap-northeast-2.amazonaws.com/frontend-service
-    newTag: 58ab067dd239160afc60941cf14aee5830ca5840
+    newTag: 222cef0a5d6da9607fca8117dee09290bc5f0952
 
