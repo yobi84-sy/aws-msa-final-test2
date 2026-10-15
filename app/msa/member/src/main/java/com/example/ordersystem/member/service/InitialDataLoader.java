@@ -1,36 +1,45 @@
 package com.example.ordersystem.member.service;
 
-import com.example.ordersystem.member.domain.Member;
-import com.example.ordersystem.member.domain.Role;
+import com.example.ordersystem.member.domain.*;
 import com.example.ordersystem.member.repository.MemberRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 public class InitialDataLoader implements CommandLineRunner {
-    private final MemberRepository memberRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final MemberRepository repository;
+    private final PasswordEncoder encoder;
+    private final String password;
+    private final String email;
 
-    public InitialDataLoader(MemberRepository memberRepository, PasswordEncoder passwordEncoder) {
-        this.memberRepository = memberRepository;
-        this.passwordEncoder = passwordEncoder;
+    public InitialDataLoader(MemberRepository repository, PasswordEncoder encoder,
+            @Value("${ADMIN_BOOTSTRAP_PASSWORD:}") String password,
+            @Value("${ADMIN_BOOTSTRAP_EMAIL:admin@syong.store}") String email) {
+        this.repository = repository; this.encoder = encoder;
+        this.password = password; this.email = email;
     }
 
-    @Override
+    @Override @Transactional
     public void run(String... args) {
-        if(memberRepository.findByLoginId("admin").isPresent() || memberRepository.findByEmail("admin@naver.com").isPresent()) {
+        // 공개된 기본 비밀번호 대신 Kubernetes Secret의 값으로 생성/갱신한다.
+        if (password.isBlank()) return;
+        if (password.length() < 12 || password.length() > 64) {
+            throw new IllegalArgumentException("관리자 비밀번호는 12~64자로 설정하세요.");
+        }
+        Member existing = repository.findByLoginId("admin").orElse(null);
+        if (existing != null) {
+            if (existing.getRole() != Role.ADMIN) {
+                throw new IllegalStateException("admin 아이디가 일반 회원에게 사용 중입니다.");
+            }
+            if (!encoder.matches(password, existing.getPassword())) {
+                existing.changePassword(encoder.encode(password));
+            }
             return;
         }
-
-        Member member = Member.builder()
-                .name("관리자")
-                .loginId("admin")
-                .nickname("관리자")
-                .email("admin@naver.com")
-                .password(passwordEncoder.encode("12341234"))
-                .role(Role.ADMIN)
-                .build();
-        memberRepository.save(member);
+        repository.save(Member.builder().loginId("admin").name("관리자").nickname("관리자")
+                .email(email).password(encoder.encode(password)).role(Role.ADMIN).build());
     }
 }

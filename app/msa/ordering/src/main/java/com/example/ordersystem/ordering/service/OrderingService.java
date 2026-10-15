@@ -17,11 +17,13 @@ public class OrderingService {
     private final OrderingRepository orderingRepository;
     private final RestTemplate restTemplate;
     private final ProductFeign productFeign;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
-    public OrderingService(OrderingRepository orderingRepository, RestTemplate restTemplate, ProductFeign productFeign) {
+    public OrderingService(OrderingRepository orderingRepository, RestTemplate restTemplate, ProductFeign productFeign, org.springframework.context.ApplicationEventPublisher events) {
         this.orderingRepository = orderingRepository;
         this.restTemplate = restTemplate;
         this.productFeign = productFeign;
+        this.events = events;
     }
 
     public Ordering orderCreate(OrderCreateDto orderDto, String userId){
@@ -33,6 +35,9 @@ public class OrderingService {
         HttpEntity<String> httpEntity = new HttpEntity<>(httpHeaders);
         ResponseEntity<ProductDto> response =  restTemplate.exchange(productGetUrl, HttpMethod.GET, httpEntity, ProductDto.class);
         ProductDto productDto = response.getBody();
+        if (orderDto.getProductCount() == null || orderDto.getProductCount() < 1 || orderDto.getProductCount() > 999) {
+            throw new IllegalArgumentException("주문 수량은 1~999개입니다.");
+        }
         int quantity = orderDto.getProductCount();
         if(productDto.getStockQuantity() < quantity){
             throw new IllegalArgumentException("재고 부족");
@@ -54,6 +59,8 @@ public class OrderingService {
                 .quantity(orderDto.getProductCount())
                 .build();
         orderingRepository.save(ordering);
+        events.publishEvent(new OrderPlaced(ordering.getId(), productDto.getName(), quantity,
+                (long) productDto.getPrice() * quantity, userId));
         return  ordering;
     }
 
@@ -62,6 +69,9 @@ public class OrderingService {
 
         ProductDto productDto = productFeign.getProductById(orderDto.getProductId(), userId);
 
+        if (orderDto.getProductCount() == null || orderDto.getProductCount() < 1 || orderDto.getProductCount() > 999) {
+            throw new IllegalArgumentException("주문 수량은 1~999개입니다.");
+        }
         int quantity = orderDto.getProductCount();
         if(productDto.getStockQuantity() < quantity){
             throw new IllegalArgumentException("재고 부족");
@@ -77,6 +87,8 @@ public class OrderingService {
                 .quantity(orderDto.getProductCount())
                 .build();
         orderingRepository.save(ordering);
+        events.publishEvent(new OrderPlaced(ordering.getId(), productDto.getName(), quantity,
+                (long) productDto.getPrice() * quantity, userId));
         return  ordering;
     }
 

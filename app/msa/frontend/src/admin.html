@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>관리자 · SYONG STORE</title>
+  <link rel="stylesheet" href="/assets/style.css?v=3">
+</head>
+<body>
+  <header class="header"><div class="container">
+    <a href="/" class="brand">syong<span class="brand-accent">store.</span></a>
+    <nav class="nav"><a class="btn btn-light" href="/">스토어</a><div id="userBox"></div></nav>
+  </div></header>
+  <main class="container utility-page">
+    <div class="section-eyebrow">STORE MANAGEMENT</div>
+    <h1 class="section-title">관리자 페이지<span class="title-dot">.</span></h1>
+    <p>상품과 서비스 운영 화면을 한곳에서 확인하세요.</p>
+    <section class="admin-links" aria-label="관리 도구">
+      <a class="admin-card" href="/product-create.html"><h2>상품 등록 ↗</h2><p>새 상품과 재고, 이미지를 등록합니다.</p></a>
+      <a class="admin-card" href="https://grafana.syong.store" target="_blank" rel="noopener noreferrer"><h2>Grafana ↗</h2><p>노드와 파드의 상태를 확인합니다.</p></a>
+      <a class="admin-card" href="https://argocd.syong.store" target="_blank" rel="noopener noreferrer"><h2>Argo CD ↗</h2><p>앱 배포 상태와 변경 이력을 확인합니다.</p></a>
+    </section>
+    <p class="section-sub">Grafana와 Argo CD는 각각의 관리자 계정으로 로그인하세요.</p>
+  </main>
+  <script src="/assets/app.js?v=3"></script><script>renderHeader();</script>
+</body>
+</html>
+

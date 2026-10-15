@@ -2,66 +2,73 @@ package com.example.ordersystem;
 
 import io.jsonwebtoken.*;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cloud.gateway.filter.GatewayFilterChain;
-import org.springframework.cloud.gateway.filter.GlobalFilter;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
+import org.springframework.cloud.gateway.filter.*;
+import org.springframework.core.Ordered;
+import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 @Component
-public class JwtAuthFilter implements GlobalFilter {
+public class JwtAuthFilter implements GlobalFilter, Ordered {
+    private final String secretKey;
+    public JwtAuthFilter(@Value("${jwt.secretKey}") String secretKey) { this.secretKey = secretKey; }
 
-    @Value("${jwt.secretKey}")
-    private String secretKey;
+    // StripPrefix보다 먼저 실행하고, 클라이언트가 보낸 사용자 헤더를 제거한다.
+    @Override public int getOrder() { return -100; }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        String bearerToken = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        String path = exchange.getRequest().getURI().getRawPath();
+        String path = exchange.getRequest().getURI().getPath();
         HttpMethod method = exchange.getRequest().getMethod();
-
-        if (isPublicPath(path, method)) {
-            return chain.filter(exchange);
+        ServerWebExchange clean = exchange.mutate().request(b -> b.headers(h -> {
+            h.remove("X-User-Id"); h.remove("X-User-Role");
+        })).build();
+        if (isPublic(path, method)) return chain.filter(clean);
+        // 외부에서 재고를 직접 변경하지 못하게 막는다.
+        if (path.startsWith("/product-service/") && !HttpMethod.GET.equals(method)
+                && !path.equals("/product-service/product/create")) {
+            return reject(exchange, HttpStatus.FORBIDDEN);
         }
-
         try {
-            if (bearerToken == null || !bearerToken.startsWith("Bearer ")) {
-                throw new IllegalArgumentException("token 관련 예외 발생");
+            String bearer = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+            String token = bearer != null && bearer.startsWith("Bearer ") ? bearer.substring(7) : null;
+            // 쿠키는 관리자 HTML을 확인하는 읽기 요청에서만 사용한다.
+            if (token == null && HttpMethod.GET.equals(method)
+                    && path.equals("/member-service/member/admin-check")) {
+                HttpCookie cookie = exchange.getRequest().getCookies().getFirst("ADMIN_ACCESS_TOKEN");
+                token = cookie == null ? null : cookie.getValue();
             }
-            String token = bearerToken.substring(7);
-
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(secretKey)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-
-            String userId = claims.getSubject();
+            if (token == null) return reject(exchange, HttpStatus.UNAUTHORIZED);
+            Claims claims = Jwts.parserBuilder().setSigningKey(secretKey).build().parseClaimsJws(token).getBody();
+            String id = claims.getSubject();
             String role = claims.get("role", String.class);
-
-            ServerWebExchange modifiedExchange = exchange.mutate()
-                    .request(builder -> builder
-                            .header("X-User-Id", userId)
-                            .header("X-User-Role", "ROLE_" + role)
-                    )
-                    .build();
-
-            return chain.filter(modifiedExchange);
-        } catch (IllegalArgumentException | MalformedJwtException | ExpiredJwtException | SignatureException |
-                 UnsupportedJwtException e) {
-            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-            return exchange.getResponse().setComplete();
+            if (id == null || !id.matches("[1-9][0-9]*")
+                    || !("USER".equals(role) || "ADMIN".equals(role))) {
+                return reject(exchange, HttpStatus.UNAUTHORIZED);
+            }
+            boolean adminOnly = path.equals("/member-service/member/admin-check")
+                    || path.equals("/product-service/product/create");
+            if (adminOnly && !"ADMIN".equals(role)) return reject(exchange, HttpStatus.FORBIDDEN);
+            return chain.filter(clean.mutate().request(b -> b.headers(h -> {
+                h.set("X-User-Id", id); h.set("X-User-Role", "ROLE_" + role);
+            })).build());
+        } catch (JwtException | IllegalArgumentException e) {
+            return reject(exchange, HttpStatus.UNAUTHORIZED);
         }
     }
 
-    private boolean isPublicPath(String path, HttpMethod method) {
-        return path.endsWith("/member/create")
-                || path.endsWith("/member/doLogin")
-                || path.endsWith("/member/refresh-token")
-                || path.endsWith("/product/list")
-                || (HttpMethod.GET.equals(method) && path.matches(".*/product/\\d+$"));
+    private boolean isPublic(String path, HttpMethod method) {
+        if (HttpMethod.POST.equals(method)) {
+            return path.equals("/member-service/member/create") || path.equals("/member-service/member/doLogin")
+                    || path.equals("/member-service/member/logout") || path.equals("/member-service/member/refresh-token");
+        }
+        return HttpMethod.GET.equals(method) && (path.equals("/product-service/product/list")
+                || path.matches("/product-service/product/[0-9]+"));
+    }
+
+    private Mono<Void> reject(ServerWebExchange exchange, HttpStatus status) {
+        exchange.getResponse().setStatusCode(status);
+        return exchange.getResponse().setComplete();
     }
 }

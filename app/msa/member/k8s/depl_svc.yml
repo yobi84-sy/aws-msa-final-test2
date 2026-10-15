@@ -41,6 +41,19 @@ spec:
             cpu: "0.5"
             memory: "250Mi"
         env:
+        # 비밀번호 미설정 시 일반 회원은 이용 가능하지만 관리자 로그인은 차단
+        - name: ADMIN_BOOTSTRAP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: final-admin-config
+              key: admin-password
+              optional: true
+        - name: ADMIN_BOOTSTRAP_EMAIL
+          valueFrom:
+            secretKeyRef:
+              name: final-admin-config
+              key: admin-email
+              optional: true
         # 회원 서비스와 Gateway가 같은 JWT 서명 키 사용
         - name: JWT_SECRET
           valueFrom:

@@ -17,7 +17,7 @@ public class OrderingController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<?> orderCreate(@RequestBody OrderCreateDto dtos, @RequestHeader("X-User-Id") String userId ){
+    public ResponseEntity<?> orderCreate(@jakarta.validation.Valid @RequestBody OrderCreateDto dtos, @RequestHeader("X-User-Id") String userId ){
         Ordering ordering = orderingService.orderFeignCreate(dtos, userId);
         return new ResponseEntity<>(ordering.getId(), HttpStatus.CREATED);
     }

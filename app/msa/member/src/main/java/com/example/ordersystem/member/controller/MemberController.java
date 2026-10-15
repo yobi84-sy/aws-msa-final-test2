@@ -56,7 +56,26 @@ public class MemberController {
         loginInfo.put("token", token);
         loginInfo.put("refreshToken", refreshToken);
         loginInfo.put("message", "로그인에 성공했습니다.");
-        return new ResponseEntity<>(loginInfo, HttpStatus.OK);
+        // 관리자 HTML의 서버 측 인증용 쿠키. 일반 회원에게는 발급하지 않는다.
+        boolean admin = member.getRole() == com.example.ordersystem.member.domain.Role.ADMIN;
+        return ResponseEntity.ok().header("Set-Cookie", adminCookie(admin ? token : "", admin ? 3600 : 0))
+                .body(loginInfo);
+    }
+
+    private String adminCookie(String token, long seconds) {
+        return org.springframework.http.ResponseCookie.from("ADMIN_ACCESS_TOKEN", token)
+                .httpOnly(true).secure(true).sameSite("Strict").path("/").maxAge(seconds).build().toString();
+    }
+
+    // Gateway에서 검증한 권한을 다시 확인한다.
+    @GetMapping("/admin-check")
+    public ResponseEntity<Void> adminCheck(@RequestHeader("X-User-Role") String role) {
+        return ResponseEntity.status("ROLE_ADMIN".equals(role) ? 200 : 403).build();
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout() {
+        return ResponseEntity.noContent().header("Set-Cookie", adminCookie("", 0)).build();
     }
 
     @PostMapping("/refresh-token")
@@ -70,7 +89,8 @@ public class MemberController {
 
             String loginId = claims.getSubject();
             Member member = memberService.findByLoginId(loginId);
-            String role = claims.get("role", String.class);
+            memberService.requireAdminConfigured(member);
+            String role = member.getRole().name();
             String newAccessToken = jwtTokenProvider.createToken(member.getId().toString(), role);
 
             Map<String, Object> tokenMap = new HashMap<>();

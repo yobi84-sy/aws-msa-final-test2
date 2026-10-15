@@ -43,6 +43,13 @@ spec:
             cpu: "0.5"
             memory: "250Mi"
         env:
+        # 기존 운영 SNS의 구독 이메일로만 주문 알림 발송
+        - name: ORDER_NOTIFICATIONS_ENABLED
+          value: "true"
+        - name: ORDER_NOTIFICATION_TOPIC_ARN
+          value: arn:aws:sns:ap-northeast-2:143710973003:Final-operations-alerts
+        - name: AWS_REGION
+          value: ap-northeast-2
         - name: DB_HOST
           valueFrom:
             secretKeyRef:

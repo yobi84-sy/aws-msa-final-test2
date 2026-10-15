@@ -24,7 +24,11 @@ public class ProductController {
 
     @PostMapping(value = "/create", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<?> productCreate(@ModelAttribute ProductRegisterDto dto,
-                                           @RequestHeader(value = "X-User-Id", required = false) String userId) throws IOException {
+                                           @RequestHeader("X-User-Id") String userId,
+                                           @RequestHeader("X-User-Role") String role) throws IOException {
+        if (!"ROLE_ADMIN".equals(role)) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
         Product product = productService.productCreate(dto, userId);
         return new ResponseEntity<>(product.getId(), HttpStatus.CREATED);
     }

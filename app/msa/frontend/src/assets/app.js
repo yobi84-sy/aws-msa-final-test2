@@ -14,7 +14,7 @@ function saveAuth(data) {
 
 function getAuth() {
   const raw = localStorage.getItem('auth');
-  return raw ? JSON.parse(raw) : null;
+  try { return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
 
 function clearAuth() {
@@ -37,10 +37,18 @@ function toggleHeaderMenus(auth) {
 }
 
 function renderHeader() {
+  // 메뉴 표시는 편의를 위한 것이며 실제 권한은 Gateway와 Nginx에서 검사한다.
+  const nav = document.querySelector('.nav');
+  if (nav && !nav.querySelector('[data-cart-link]')) {
+    nav.insertAdjacentHTML('afterbegin', '<a class="btn btn-light" data-cart-link href="/cart.html">장바구니</a><a class="btn btn-light" data-admin-only style="display:none" href="/admin.html">관리자</a>');
+  }
   const auth = getAuth();
   const userBox = document.getElementById('userBox');
 
   toggleHeaderMenus(auth);
+  document.querySelectorAll('[data-admin-only]').forEach(el => {
+    el.style.display = auth && auth.role === 'ADMIN' ? '' : 'none';
+  });
 
   if (!userBox) {
     return;
@@ -54,7 +62,13 @@ function renderHeader() {
       </div>
     `;
     const logoutBtn = document.getElementById('logoutBtn');
-    logoutBtn.addEventListener('click', function () {
+    logoutBtn.addEventListener('click', async function () {
+      try {
+        await apiRequest('/member-service/member/logout', { method: 'POST' });
+      } catch {
+        alert('로그아웃 요청에 실패했습니다. 다시 시도해주세요.');
+        return;
+      }
       clearAuth();
       window.location.href = '/';
     });
@@ -89,8 +103,12 @@ async function apiRequest(url, options = {}) {
   });
 
   if (!response.ok) {
+    if (response.status === 401) throw new Error('로그인이 만료되었습니다. 다시 로그인해주세요.');
+    if (response.status === 403) throw new Error('접근 권한이 없습니다.');
     const text = await response.text();
-    throw new Error(text || '요청 처리 중 오류가 발생했습니다.');
+    let detail = text;
+    try { const data = JSON.parse(text); detail = data.message || data.error || '요청에 실패했습니다.'; } catch {}
+    throw new Error(detail.length < 200 ? detail : '요청에 실패했습니다. 재고와 입력값을 확인해주세요.');
   }
 
   const contentType = response.headers.get('content-type') || '';
@@ -217,8 +235,11 @@ async function loadProductDetail() {
           <div class="detail-price">${formatPrice(product.price)}</div>
           <div class="detail-stock" id="detailStock">재고: ${escapeHtml(product.stockQuantity)}개</div>
           <p class="detail-description">${escapeHtml(product.description || '상품 설명이 없습니다.')}</p>
+          <label class="quantity-field" for="productQuantity">수량
+            <input id="productQuantity" type="number" min="1" max="${Math.min(999, product.stockQuantity)}" value="1" ${product.stockQuantity < 1 ? 'disabled' : ''}>
+          </label>
           <div class="detail-actions">
-            <button class="btn btn-primary btn-large" id="purchaseBtn" type="button" ${product.stockQuantity < 1 ? 'disabled' : ''}>구매하기</button>
+            <button class="btn btn-primary btn-large" id="purchaseBtn" type="button" ${product.stockQuantity < 1 ? 'disabled' : ''}>장바구니 담기</button>
             <a class="btn btn-light btn-large" href="/">메인으로</a>
           </div>
           <div id="purchaseMessage" style="display:none;"></div>
@@ -238,24 +259,100 @@ async function loadProductDetail() {
           return;
         }
 
-        purchaseBtn.disabled = true;
         try {
-          await apiRequest('/ordering-service/ordering/create', {
-            method: 'POST',
-            body: JSON.stringify({
-              productId: product.id,
-              productCount: 1
-            })
-          });
-          alert('주문이 완료되었습니다.');
-          window.location.href = '/';
+          const quantity = Number(document.getElementById('productQuantity').value);
+          if (!Number.isInteger(quantity) || quantity < 1 || quantity > Math.min(999, product.stockQuantity)) {
+            throw new Error('재고 내에서 1~999개를 선택해주세요.');
+          }
+          addToCart(product, quantity);
+          showMessage('purchaseMessage', '장바구니에 담았습니다. 장바구니에서 주문해주세요.', 'success');
         } catch (error) {
-          purchaseBtn.disabled = false;
-          showMessage('purchaseMessage', error.message || '구매에 실패했습니다.', 'error');
+          showMessage('purchaseMessage', error.message, 'error');
         }
       });
     }
   } catch (error) {
     target.innerHTML = '<div class="empty">상품 상세 정보를 불러오지 못했습니다.</div>';
   }
+}
+
+
+// 장바구니는 로그인한 계정별로 현재 브라우저에 저장한다.
+function cartKey() { return 'syong-cart-' + (getAuth()?.id || 'guest'); }
+function readCart() {
+  try {
+    const cart = JSON.parse(localStorage.getItem(cartKey()) || '[]');
+    return Array.isArray(cart) ? cart.filter(item => Number.isSafeInteger(item.id) && item.id > 0
+      && Number.isInteger(item.quantity) && item.quantity >= 1 && item.quantity <= 999) : [];
+  } catch { return []; }
+}
+function saveCart(cart) { localStorage.setItem(cartKey(), JSON.stringify(cart)); }
+function addToCart(product, quantity) {
+  const cart = readCart();
+  const item = cart.find(item => item.id === Number(product.id));
+  const total = quantity + (item?.quantity || 0);
+  if (total > Math.min(999, product.stockQuantity)) throw new Error('장바구니 수량이 재고를 초과합니다.');
+  if (item) { item.quantity = total; item.price = product.price; item.name = product.name; }
+  else cart.push({ id: Number(product.id), name: product.name, price: product.price, quantity });
+  saveCart(cart);
+}
+
+// 기존 주문 API를 상품별로 호출한다. 성공한 상품만 제거하고 실패한 상품은 보존한다.
+async function checkoutCart() {
+  const cart = readCart();
+  let succeeded = 0;
+  const failures = [];
+  for (const item of cart) {
+    try {
+      await apiRequest('/ordering-service/ordering/create', { method: 'POST',
+        body: JSON.stringify({ productId: item.id, productCount: item.quantity }) });
+      const remaining = readCart().filter(row => row.id !== item.id);
+      saveCart(remaining);
+      succeeded++;
+    } catch (error) {
+      failures.push(String(item.name) + ': ' + error.message);
+    }
+  }
+  return { succeeded, failures };
+}
+
+function renderCart() {
+  const cart = readCart();
+  const target = document.getElementById('cartItems');
+  target.innerHTML = cart.length ? cart.map(item => `
+    <article class="cart-row">
+      <a href="${escapeHtml(getProductDetailUrl(item.id))}">${escapeHtml(item.name)}</a>
+      <span>${formatPrice(item.price)}</span>
+      <label>수량 <input class="cart-quantity" aria-label="${escapeHtml(item.name)} 수량" type="number" min="1" max="999" value="${item.quantity}" data-quantity="${item.id}"></label>
+      <strong>${formatPrice(item.price * item.quantity)}</strong>
+      <button class="btn btn-light" type="button" data-remove="${item.id}">삭제</button>
+    </article>`).join('') : '<div class="empty">장바구니가 비어 있습니다.</div>';
+  document.getElementById('cartTotal').textContent = '예상 합계 ' + formatPrice(cart.reduce((sum, item) => sum + item.price * item.quantity, 0));
+  target.querySelectorAll('[data-remove]').forEach(button => button.onclick = () => {
+    saveCart(readCart().filter(item => item.id !== Number(button.dataset.remove))); renderCart();
+  });
+  target.querySelectorAll('[data-quantity]').forEach(input => input.onchange = () => {
+    const value = Number(input.value);
+    if (!Number.isInteger(value) || value < 1 || value > 999) {
+      showMessage('cartMessage', '수량은 1~999개로 입력해주세요.', 'error'); renderCart(); return;
+    }
+    const rows = readCart();
+    rows.find(item => item.id === Number(input.dataset.quantity)).quantity = value;
+    saveCart(rows); renderCart();
+  });
+  const button = document.getElementById('checkoutBtn');
+  button.disabled = !cart.length;
+  button.onclick = async () => {
+    if (!guardLogin()) return;
+    // 처리 중 중복 클릭과 수량 변경을 막는다.
+    button.disabled = true;
+    target.querySelectorAll('input, button').forEach(el => el.disabled = true);
+    let result;
+    try { result = await checkoutCart(); }
+    catch { showMessage('cartMessage', '처리 결과를 확인하지 못했습니다. 재주문 전 주문 서비스 로그를 확인해주세요.', 'error'); return; }
+    renderCart();
+    showMessage('cartMessage',
+      result.succeeded + '개 상품 주문 완료.' + (result.failures.length ? ' 주문하지 못한 상품은 장바구니에 남겼습니다. ' + result.failures.join(' / ') : ''),
+      result.failures.length ? 'error' : 'success');
+  };
 }

@@ -6,7 +6,7 @@
   <meta name="description" content="일상에 작은 취향을 더하는 공간, SYONG STORE.">
   <meta name="theme-color" content="#173c32">
   <title>SYONG STORE · 일상에 취향을 더하다</title>
-  <link rel="stylesheet" href="/assets/style.css?v=2">
+  <link rel="stylesheet" href="/assets/style.css?v=3">
 </head>
 <body>
   <a class="skip-link" href="#main">본문 바로가기</a>
@@ -18,7 +18,7 @@
       <nav class="nav" aria-label="회원 메뉴">
         <a class="btn btn-light" data-guest-only href="/login.html">로그인</a>
         <a class="btn btn-primary" data-guest-only href="/signup.html">회원가입 <span aria-hidden="true">↗</span></a>
-        <a class="btn btn-primary" data-auth-only style="display:none;" href="/product-create.html">상품등록 <span aria-hidden="true">＋</span></a>
+        <a class="btn btn-primary" data-admin-only style="display:none;" href="/product-create.html">상품등록 <span aria-hidden="true">＋</span></a>
         <div id="userBox"></div>
       </nav>
     </div>
@@ -32,7 +32,7 @@
         <div class="hero-actions">
           <a class="btn btn-primary btn-large" href="#productSection">상품 둘러보기 <span aria-hidden="true">↗</span></a>
           <a class="text-link" data-guest-only href="/signup.html">함께 시작하기 <span aria-hidden="true">→</span></a>
-          <a class="text-link" data-auth-only style="display:none;" href="/product-create.html">내 상품 등록하기 <span aria-hidden="true">→</span></a>
+          <a class="text-link" data-admin-only style="display:none;" href="/product-create.html">상품 등록하기 <span aria-hidden="true">→</span></a>
         </div>
         <div class="hero-caption"><span class="caption-line" aria-hidden="true"></span> GOOD THINGS, SIMPLE MOMENTS.</div>
       </div>
@@ -64,9 +64,9 @@
     </section>
     <section class="join-panel">
       <div><div class="section-eyebrow">MAKE IT YOURS</div><h2>당신의 취향도<br>이곳에서 시작해요.</h2></div>
-      <div><p>계정을 만들고 상품을 등록하거나<br>마음에 드는 상품을 구매해보세요.</p>
+      <div><p>계정을 만들고 장바구니에 담아<br>마음에 드는 상품을 구매해보세요.</p>
         <a class="btn btn-primary" data-guest-only href="/signup.html">회원가입하기 <span aria-hidden="true">↗</span></a>
-        <a class="btn btn-primary" data-auth-only style="display:none;" href="/product-create.html">상품 등록하기 <span aria-hidden="true">↗</span></a>
+        <a class="btn btn-primary" data-admin-only style="display:none;" href="/product-create.html">상품 등록하기 <span aria-hidden="true">↗</span></a>
       </div>
     </section>
   </main>
@@ -75,7 +75,7 @@
     <div class="footer-sub">일상에 취향을 더하는 작은 공간</div>
     <div class="footer-edition">© SYONG STORE · EDITION 02</div>
   </footer>
-  <script src="/assets/app.js?v=2"></script>
+  <script src="/assets/app.js?v=3"></script>
   <script>renderHeader(); loadProducts();</script>
 </body>
 </html>

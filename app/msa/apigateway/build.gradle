@@ -24,6 +24,8 @@ repositories {
 }
 
 dependencies {
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'io.projectreactor:reactor-test'
 //	gateway의존성 추가
 	implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
 
