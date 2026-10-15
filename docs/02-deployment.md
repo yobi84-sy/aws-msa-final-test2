@@ -31,6 +31,10 @@ GitHub Actions는 OIDC로 AWS IAM 역할을 사용한다. 앱 파드도 ServiceA
 
 앱 기능의 설정 절차는 [앱 기능 안내](../app/msa/APP-FEATURES.md)에 정리했다.
 
+이전 배포로 돌아가는 방법은 [이미지 롤백 안내](ROLLBACK.md)를 참고한다.
+
+차수별 변경과 이미지 태그는 [배포 이력](RELEASES.md)에 정리했다.
+
 ---
 
 [프로젝트 홈](../README.md) · [이전: 프로젝트 구성](01-architecture.md) · [다음: 모니터링과 실습 결과](03-monitoring-and-tests.md)

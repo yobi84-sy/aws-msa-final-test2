@@ -1,8 +1,8 @@
 # 간단한 스토어 기능 추가
 
-## 4차 배포 준비: 관리자 운영 대시보드
+## 4차 배포: 관리자 운영 대시보드
 
-관리자 페이지를 바로가기 모음에서 요약 대시보드로 변경했다. 아래 기능은 로컬 코드와 테스트까지 준비한 상태이며 Git push 후 새 버전 배포가 필요하다.
+관리자 페이지를 바로가기 모음에서 요약 대시보드로 변경했다. 4차 이미지 배포와 실제 DB·모니터링·Argo CD 조회 연결까지 확인했다. 아래 명령은 이후 변경을 다시 배포할 때 참고한다.
 
 - DB: 전체 회원·상품·상품별 주문 기록·남은 재고 합계. 고객 개인정보와 DB 접속 정보는 반환하지 않는다.
 - 모니터링: Grafana health 응답, Prometheus의 Ready 노드·soldesk 파드 수.
@@ -36,7 +36,7 @@ kubectl get pods -n soldesk
 kubectl auth can-i get applications.argoproj.io/final-apps -n argocd --as=system:serviceaccount:soldesk:member-dashboard
 ```
 
-로컬 검증: 회원 서비스 Admin 테스트, Gateway 권한 테스트, 프런트엔드 대시보드·장바구니 테스트를 통과했다. 실제 DB·Prometheus·Kubernetes API 연결은 배포 후 별도로 확인한다. 화면 미리보기에는 테스트용 예시값을 사용했다.
+검증: 회원 서비스 Admin 테스트, Gateway 권한 테스트, 프런트엔드 대시보드·장바구니 테스트를 통과했다. 배포 후 실제 DB·Grafana·Prometheus·Kubernetes API 조회와 비인증 요청 차단도 확인했다. 최초 화면 미리보기에는 테스트용 예시값을 사용했다.
 
 ---
 

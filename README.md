@@ -18,6 +18,8 @@ Terraform으로 AWS 인프라를 구성하고, GitHub Actions와 Argo CD로 앱�
 | [문제 해결 기록](docs/04-troubleshooting.md) | Grafana 503, 관리자 로그인, Terraform 오류 |
 | [프로젝트 회고](docs/05-retrospective.md) | 배운 점과 실습 범위 |
 
+[배포 이력·이미지 태그](docs/RELEASES.md) · [이전 버전으로 롤백](docs/ROLLBACK.md)
+
 ## 사용 기술
 
 - **인프라:** Terraform · VPC · EKS · IAM · ALB · Route 53 · ACM
