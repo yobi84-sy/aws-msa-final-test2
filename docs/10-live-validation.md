@@ -1,8 +1,6 @@
 # 개선 코드 실제 적용 및 코드 리뷰
 
-아래는 test 브랜치에서 실제 검증한 기록이다. 검증 후 사용자가 개선본을 main으로 승격하고 기존 main을 test에 보관하도록 요청했다. 승격한 환경은 `github_revision = "main"`을 사용하며, test는 이전 버전 보관용이다.
-
-검증일: 2026-10-16. `test` 브랜치를 실제 AWS 환경에 적용했다. `main`에는 병합하지 않았다. 전날 기존 환경을 삭제했으므로 **새 환경을 S3 backend로 구축**했으며, 기존 자원이 있는 local state를 옮기는 실습은 이번에 수행하지 않았다.
+검증일: 2026-10-16. test에서 실제 AWS 검증을 마친 뒤 사용자 요청으로 개선본을 main에 반영하고 기존 main을 test에 보관했다. 현재 환경은 `github_revision = "main"`을 사용한다. 전날 기존 환경을 삭제했으므로 **새 환경을 S3 backend로 구축**했으며, 기존 자원이 있는 local state를 옮기는 실습은 이번에 수행하지 않았다.
 
 ## 적용 결과
 
@@ -51,9 +49,9 @@ Argo CD의 배포 대상이 main으로 고정되어 있으면 test의 인프라�
 
 ## 코드 리뷰와 확인 범위
 
-- 기본 main 배포와 test 검증을 설정값으로 구분했다. main의 기존 코드는 변경하지 않았다.
+- 기본 main 배포와 별도 브랜치 검증을 설정값으로 구분했다. 개선 전 main은 test에 보관했다.
 - 새 ECR에는 이미지가 없으므로 최초 5개 전체 빌드가 필요하다. 이후 선택 빌드는 관련 서비스 태그만 갱신한다.
-- test를 Argo에 연결한 뒤에는 test 매니페스트 push도 실제 배포될 수 있다. 코드만 작업하려면 자동 sync를 끄거나 실습 환경을 삭제한다.
+- 특정 브랜치를 Argo에 연결한 뒤에는 해당 매니페스트 push도 실제 배포될 수 있다. 코드만 작업하려면 배포 대상과 다른 작업 브랜치를 사용한다. 현재 test는 이전 버전 보관용이다.
 - PDB는 자발적인 축출을 제한한다. 갑작스러운 노드 장애, 직접적인 Pod 삭제, 모든 롤링 업데이트의 가용성을 보장하지 않는다.
 - DB 장애 시 liveness가 DB 상태에 의존하지 않는 것은 모의 테스트로 검증했다. 실제 운영 DB를 중단하는 장애 시험은 하지 않았다.
 - RDS 복원은 임시 검증 데이터가 복원되는 것까지 확인했다. 실제 주문 데이터 전체에 대한 무손실 복구 시험은 아니다.
@@ -68,6 +66,7 @@ Argo CD의 배포 대상이 main으로 고정되어 있으면 test의 인프라�
 - Terraform scheduling 모의 테스트 1개 성공, 세 루트 validate 및 최종 plan 확인.
 - kubectl Kustomize 렌더링, 변경 PowerShell 구문 검사, Terraform fmt 및 Git diff 검사.
 - 실제 GitHub Actions: [5개 서비스 테스트](https://github.com/yonginfra/aws-msa-final-project/actions/runs/38841058872), [태그 변경만 포함한 실행](https://github.com/yonginfra/aws-msa-final-project/actions/runs/38841382700).
+- main 승격 후에도 [자동 테스트·OIDC 인증·5개 이미지 게시](https://github.com/yonginfra/aws-msa-final-project/actions/runs/38850396449)가 성공했고 배포 태그가 자동 갱신됐다. Argo 배포 대상을 main으로 바꾼 후 재계획은 No changes였다.
 
 ## 비밀번호와 다음 작업
 
