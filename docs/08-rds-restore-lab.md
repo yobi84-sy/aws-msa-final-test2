@@ -1,6 +1,6 @@
 # RDS를 별도 DB로 복원하는 실습
 
-원본 `final-ordermsa-db`를 덮어쓰거나 삭제하지 않는다. `Invoke-RdsRestoreLab.ps1`은 기본 `Inspect`(조회)이며, 스냅샷 생성·복원·정리는 별도 모드와 확인 질문이 필요하다. 이 변경 작업 중 AWS 명령은 실행하지 않았다. 실습 DB와 수동 스냅샷은 추가 비용이 들며 Terraform state 밖에 생성하므로 프로젝트 destroy 전에 별도 정리한다.
+원본 `final-ordermsa-db`를 덮어쓰거나 삭제하지 않는다. `Invoke-RdsRestoreLab.ps1`은 기본 `Inspect`(조회)이며, 스냅샷 생성·복원·정리는 별도 모드와 확인 질문이 필요하다. 2026-10-16 실제 복원·데이터 확인·실습 자원 정리 결과는 [검증 기록](10-live-validation.md)에 남겼다. 실습 DB와 수동 스냅샷은 추가 비용이 들며 Terraform state 밖에 생성하므로 프로젝트 destroy 전에 별도 정리한다.
 
 ## 1. 기준 데이터 확인
 

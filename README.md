@@ -78,3 +78,5 @@ Helm·Kustomize는 [배포 자동화](docs/02-deployment.md), EBS는 [프로젝�
 state 버킷을 먼저 준비하고 **AWS 인프라 → EKS 내부 구성 → 앱 배포 → DNS 연결** 순서로 진행합니다. 삭제는 EKS 내부 구성부터 진행하며, state 버킷은 따로 보관합니다.
 
 GitHub Actions의 이미지 게시 대상은 main입니다. 기본 Argo CD 대상도 main이며, 별도 실습에서는 `github_revision`으로 검증 브랜치를 지정할 수 있습니다. 실제 적용 결과와 확인하지 않은 범위는 [검증 기록](docs/10-live-validation.md)에 구분했습니다.
+
+**브랜치:** main은 검증한 개선 버전, test는 개선 전 main 보관용입니다. 새 수정은 최신 main에서 작업 브랜치를 만들어 진행합니다. 이전 test 코드를 현재 S3 state 환경에 그대로 적용하지 않습니다.

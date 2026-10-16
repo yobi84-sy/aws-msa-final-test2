@@ -1,6 +1,6 @@
 # 월요일 학원 PC 실행 순서 (PowerShell)
 
-이 변경은 `test`에서 코드와 로컬 테스트만 준비했다. 이 문서의 AWS 명령은 **이번 작업에서 실행하지 않았다**. 실제 계정 상태·비용·삭제할 데이터를 학원 PC에서 확인한 뒤 단계별로 실행한다. 실패하면 다음 단계로 넘어가지 않는다. `main` 병합, AWS 적용, 실제 배포는 별도 사용자 작업이다.
+개선 코드는 test에서 실제 검증한 뒤 main으로 승격했다. 현재 test는 개선 전 main의 보관용이며, **기본 실행 코드는 main**이다. 실제 계정 상태·비용·보관할 데이터를 확인한 뒤 필요한 단계만 실행한다. 이미 정상 실행 중이면 재구축·삭제 절차를 반복하지 않는다. 실제 검증 결과는 [적용 기록](10-live-validation.md)을 참고한다.
 
 ## 0. 공통 준비와 브랜치 경계
 
@@ -9,8 +9,8 @@ PowerShell 7, Git/Git Bash, Terraform 1.12 이상 2 미만(로컬 확인 버전 
 ```powershell
 Set-Location 'C:\aws-msa-backend-terraform'
 git fetch origin
-git switch test
-git pull --ff-only origin test
+git switch main
+git pull --ff-only origin main
 git status --short
 $env:AWS_PROFILE = 'default'
 $env:AWS_REGION = 'ap-northeast-2'
@@ -23,7 +23,7 @@ aws sts get-caller-identity --profile default
 
 ## 1. 기본 재구축: 기존 환경을 먼저 삭제
 
-삭제는 **기존 state를 실제로 관리하던 코드·폴더·프로필**에서 수행한다. 기존 local state 환경이라면 `main`의 기존 설정을 checkout해 사용한다. 이 과정은 main의 코드를 수정하거나 커밋하지 않는다. 이미 S3로 전환한 환경이면 해당 backend 설정의 `test` 코드를 유지한다. Terraform workspace는 `default`를 사용하며 다른 workspace state는 먼저 별도 확인한다.
+삭제는 **기존 state를 실제로 관리하던 코드·폴더·프로필**에서 수행한다. 기존 local state 환경이라면 당시 관리하던 코드와 폴더를 사용한다. 이미 S3로 전환한 현재 환경에서는 해당 backend 설정이 있는 main을 유지한다. Terraform workspace는 default를 사용하며 다른 workspace state는 먼저 별도 확인한다.
 
 ```powershell
 # 기존 local state를 사용하던 경우에만: 저장소 작업이 깨끗한 상태에서 전환
@@ -84,7 +84,7 @@ aws ecr list-images --repository-name member-service --region ap-northeast-2
 terraform -chdir=terraform-k8s state list
 terraform -chdir=terraform state list
 # 두 state가 비었고 실제 자원 정리도 끝난 뒤 개선 코드로 이동
-git switch test
+git switch main
 ```
 
 ## 2. state 전용 버킷 (최초 한 번만)
@@ -136,21 +136,22 @@ apply는 namespace·앱 Secret·Argo CD·ALB Controller·모니터링 등을 준
 
 ## 5. 앱 이미지와 GitOps 배포 (별도 승인 후)
 
-현재 `test` 코드를 push해도 AWS 게시 job은 실행되지 않고 Argo CD의 기본 배포 대상은 `main`이다. 기본 운영 경로는 아래의 main 배포 절차를 따른다. 별도 실습 환경에서 사용자가 test 배포를 요청했다면 다음 검증 경로를 사용할 수 있다. main에는 병합하지 않는다.
+현재 게시·배포 대상은 main이다. 아래 별도 검증 경로는 운영과 다른 환경에서 시험할 때 사용한다. 기존 test는 보관용이므로 검증 브랜치로 재사용하지 않는다.
 
-### main을 유지하며 test를 검증하는 경우
+### main을 유지하며 별도 브랜치를 검증하는 경우
 
 새 ECR에 이미지가 없으면 저장소 루트에서 아래 스크립트로 테스트·전체 빌드·게시를 수행한다. Docker와 Git Bash가 필요하다. 테스트 또는 빌드가 실패하면 태그 반영 단계로 넘어가지 않는다.
 
 ```powershell
+git switch -c infra-lab main
 $imageTag = (git rev-parse HEAD).Trim()
 ./app/msa/scripts/Build-Images.ps1 -ImageTag $imageTag -Push
 git add app/msa/kustomization.yaml
-git commit -m "Deploy rehearsal images on test"
-git push origin test
+git commit -m "Deploy rehearsal images"
+git push -u origin infra-lab
 ```
 
-개인 `terraform-k8s/terraform.tfvars`에 `github_revision = "test"`를 지정한다. 이후 아래의 sync/ingress 활성화, DNS 연결, 접속 확인 순서는 동일하다. 브랜치 push 자체가 앱 배포를 막는 것은 아니며, **이미 Argo 자동 동기화를 켠 test 환경에서는 이후 test의 매니페스트 변경도 배포된다.** 검증 환경을 삭제하거나 자동 동기화를 끈 뒤 코드만 작업한다. main 배포로 전환할 때는 이미지 게시와 main 반영을 확인하고 `github_revision = "main"`으로 되돌린다.
+별도 환경의 개인 tfvars에 `github_revision = "infra-lab"`을 지정한다. 이후 sync/ingress 활성화, DNS 연결, 접속 확인 순서는 동일하다. 이미 자동 동기화를 켠 환경에서는 해당 브랜치의 매니페스트 변경도 배포된다. 코드만 작업하려면 자동 sync를 끄거나 별도 실습 환경을 사용한다. main 배포로 전환할 때는 이미지 게시와 main 반영을 확인하고 `github_revision = "main"`으로 되돌린다. 이 저장소의 이름·도메인·backend 키를 그대로 쓰면 환경이 분리되지 않으므로, 같은 AWS 자원 위에 별도 state로 중복 구축하지 않는다.
 
 ### 기본 main 배포
 

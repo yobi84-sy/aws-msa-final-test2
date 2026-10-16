@@ -36,7 +36,7 @@ terraform -chdir=terraform-state-bootstrap plan
 
 ## 예외: 자원을 유지하며 기존 local state 이전
 
-1. Terraform/CI 작업을 모두 중단한다. 기존 `.terraform` backend 메타데이터와 local state를 그대로 보존한다. 두 루트의 `state list`가 실제 자원을 가리키는지, 현재 workspace가 default인지 확인한다. `main`의 local 설정에서 확인한 뒤 state 파일을 삭제하지 않고 test 코드로 전환한다.
+1. Terraform/CI 작업을 모두 중단한다. 기존 `.terraform` backend 메타데이터와 local state를 그대로 보존한다. 두 루트의 `state list`가 실제 자원을 가리키는지, 현재 workspace가 default인지 확인한다. 기존 local 설정에서 확인한 뒤 state 파일을 삭제하지 않고 S3 backend가 있는 개선 코드로 전환한다. 현재 개선 코드는 main이다.
 2. 두 local state·backup을 저장소 외부의 접근 제한된 디렉터리에 복사한다. 기존 backend가 이미 S3라면 S3 버전 관리 상태와 이전 backend 설정도 보존한다. 이 복사본을 Git·공유 로그에 첨부하지 않는다.
 3. bootstrap으로 state 전용 버킷을 먼저 준비한다. AWS 계정·버킷 소유권을 확인한다. 목적지 두 키에 기존 state가 있는지 `aws s3api list-object-versions --bucket <버킷> --prefix final/`로 확인한다. 존재하면 덮어쓰지 말고 lineage/serial과 소유 환경부터 비교한다.
 4. 먼저 infra, 다음 k8s 순서로 이전한다. 아래 명령은 backend 저장 위치만 바꾸며 AWS 자원 apply는 하지 않는다. 질문의 원본/목적지와 state 내용을 확인한 뒤 동의한다. `-force-copy`, `-reconfigure`, `-lock=false`로 이전 검사를 생략하지 않는다.
