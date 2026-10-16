@@ -29,6 +29,8 @@ spec:
         app: frontend
 
     spec:
+      # ALB가 종료할 파드를 대상에서 제외하는 동안 기존 요청을 처리할 시간을 확보합니다.
+      terminationGracePeriodSeconds: 40
       # 복제 수가 증가하면 노드별 파드 수가 고르게 배치되도록 유도
       topologySpreadConstraints:
         - maxSkew: 1
@@ -39,6 +41,10 @@ spec:
               app: frontend
       containers:
         - name: frontend-container
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 15"]
 
           # 이번에 빌드한 프런트엔드 이미지
           image: 143710973003.dkr.ecr.ap-northeast-2.amazonaws.com/frontend-service:lab-v1
