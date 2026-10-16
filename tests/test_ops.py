@@ -45,19 +45,26 @@ else:
 print(json.dumps(result))
 '''
 
-@unittest.skipUnless(shutil.which('pwsh') and os.name == 'posix', 'PowerShell 7 + POSIX mock CLI가 필요합니다.')
+@unittest.skipUnless(shutil.which('pwsh'), 'PowerShell 7이 필요합니다.')
 class OpsTests(unittest.TestCase):
     def run_script(self, script, *args, **variables):
         with tempfile.TemporaryDirectory() as tmp:
-            mock = Path(tmp, 'aws')
-            mock.write_text('#!' + sys.executable + '\n' + FAKE)
-            mock.chmod(0o755)
+            # Windows에서는 실행 가능한 CMD 래퍼로 같은 가짜 AWS CLI를 호출합니다.
+            if os.name == 'nt':
+                fake_script = Path(tmp, 'fake_aws.py')
+                fake_script.write_text(FAKE, encoding='utf-8')
+                Path(tmp, 'aws.cmd').write_text(
+                    '@echo off\n"' + sys.executable + '" "' + str(fake_script) + '" %*\n', encoding='utf-8')
+            else:
+                mock = Path(tmp, 'aws')
+                mock.write_text('#!' + sys.executable + '\n' + FAKE, encoding='utf-8')
+                mock.chmod(0o755)
             log = Path(tmp, 'calls.jsonl')
             environment = dict(os.environ, PATH=tmp + os.pathsep + os.environ['PATH'],
                                MOCK_AWS_LOG=str(log), **variables)
             command = [shutil.which('pwsh'), '-NoLogo', '-NoProfile', '-File',
                        str(ROOT / 'scripts/ops' / script), *args]
-            result = subprocess.run(command, env=environment, text=True, capture_output=True, timeout=30)
+            result = subprocess.run(command, env=environment, text=True, encoding='utf-8', capture_output=True, timeout=90)
             calls = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
             return result, calls
 
