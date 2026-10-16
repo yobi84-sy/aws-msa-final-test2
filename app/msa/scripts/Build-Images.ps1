@@ -17,8 +17,10 @@ $imageNames = [ordered]@{
 }
 # Git for Windows의 bash, JDK 17, Python 3, Node.js가 필요합니다.
 # Windows의 WSL 실행기보다 Git Bash를 우선하여 WSL 설치 여부에 의존하지 않습니다.
-$gitBash = Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Git/bin/bash.exe'
-$bashCommand = if ($env:OS -eq 'Windows_NT' -and (Test-Path -LiteralPath $gitBash)) {
+$gitBash = if ($env:OS -eq 'Windows_NT') {
+    Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Git/bin/bash.exe'
+} else { $null }
+$bashCommand = if ($gitBash -and (Test-Path -LiteralPath $gitBash)) {
     $gitBash
 } else {
     (Get-Command bash -ErrorAction Stop).Source
