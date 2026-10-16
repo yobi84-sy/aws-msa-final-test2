@@ -17,10 +17,10 @@ resource "helm_release" "argocd_application" {
           # Application 삭제 시 앱 리소스도 함께 정리
           finalizers = ["resources-finalizer.argocd.argoproj.io"]
 
-          # main 브랜치의 app/msa 배포 설정 사용
+          # 기본 main을 유지하며, 별도 검증 환경에서는 test를 명시할 수 있음
           source = {
             repoURL        = var.github_repo_url
-            targetRevision = "main"
+            targetRevision = var.github_revision
             path           = "app/msa"
           }
 

@@ -23,4 +23,5 @@ if __name__ == "__main__":
     p.add_argument("services", nargs="+", choices=list(IMAGES))
     args = p.parse_args()
     path = Path("app/msa/kustomization.yaml")
-    path.write_text(update(path.read_text(), args.services, args.tag))
+    # Windows의 기본 CP949와 관계없이 저장소의 UTF-8을 유지합니다.
+    path.write_text(update(path.read_text(encoding="utf-8"), args.services, args.tag), encoding="utf-8")

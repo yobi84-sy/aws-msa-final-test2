@@ -23,6 +23,13 @@ variable "github_repo_url" {
 }
 
 # 저장소 읽기 토큰을 발급한 GitHub 사용자
+variable "github_revision" {
+  description = "Argo CD가 배포할 Git 브랜치 또는 커밋. 기본은 main, 별도 검증은 test 사용."
+  type        = string
+  default     = "main"
+}
+
+# 저장소 읽기 토큰을 발급한 GitHub 사용자
 variable "github_username" {
   type    = string
   default = "yonginfra"

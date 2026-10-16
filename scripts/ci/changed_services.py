@@ -56,7 +56,7 @@ if __name__ == "__main__":
     p.add_argument("--since-image-tags", action="store_true")
     args = p.parse_args()
     if args.since_image_tags and not args.all:
-        manifest = Path("app/msa/kustomization.yaml").read_text()
+        manifest = Path("app/msa/kustomization.yaml").read_text(encoding="utf-8")
         tags = {}
         for service in SERVICES:
             image = service if service == "apigateway" else service + "-service"
