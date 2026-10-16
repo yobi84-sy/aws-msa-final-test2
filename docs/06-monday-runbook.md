@@ -136,7 +136,23 @@ apply는 namespace·앱 Secret·Argo CD·ALB Controller·모니터링 등을 준
 
 ## 5. 앱 이미지와 GitOps 배포 (별도 승인 후)
 
-현재 `test` 코드를 push해도 AWS 게시 job은 실행되지 않고 Argo CD는 계속 `main`을 본다. 따라서 `test` 상태에서는 여기서 멈추고 코드 검토와 인프라 준비까지만 할 수 있다. **실제 앱 반영은 사용자가 별도로 main 반영을 결정한 이후** 진행한다. 이번 작업에서 main을 병합하지 않는다. Argo targetRevision을 test로 돌리는 우회 배포도 하지 않는다.
+현재 `test` 코드를 push해도 AWS 게시 job은 실행되지 않고 Argo CD의 기본 배포 대상은 `main`이다. 기본 운영 경로는 아래의 main 배포 절차를 따른다. 별도 실습 환경에서 사용자가 test 배포를 요청했다면 다음 검증 경로를 사용할 수 있다. main에는 병합하지 않는다.
+
+### main을 유지하며 test를 검증하는 경우
+
+새 ECR에 이미지가 없으면 저장소 루트에서 아래 스크립트로 테스트·전체 빌드·게시를 수행한다. Docker와 Git Bash가 필요하다. 테스트 또는 빌드가 실패하면 태그 반영 단계로 넘어가지 않는다.
+
+```powershell
+$imageTag = (git rev-parse HEAD).Trim()
+./app/msa/scripts/Build-Images.ps1 -ImageTag $imageTag -Push
+git add app/msa/kustomization.yaml
+git commit -m "Deploy rehearsal images on test"
+git push origin test
+```
+
+개인 `terraform-k8s/terraform.tfvars`에 `github_revision = "test"`를 지정한다. 이후 아래의 sync/ingress 활성화, DNS 연결, 접속 확인 순서는 동일하다. 브랜치 push 자체가 앱 배포를 막는 것은 아니며, **이미 Argo 자동 동기화를 켠 test 환경에서는 이후 test의 매니페스트 변경도 배포된다.** 검증 환경을 삭제하거나 자동 동기화를 끈 뒤 코드만 작업한다. main 배포로 전환할 때는 이미지 게시와 main 반영을 확인하고 `github_revision = "main"`으로 되돌린다.
+
+### 기본 main 배포
 
 사용자가 main 반영을 완료한 뒤 Actions 화면에서 `Build and publish changed services`를 **main / full_build=true**로 실행한다. 새 ECR은 비어 있으므로 첫 구축은 5개 전체 빌드가 필요하다. 저장소 Actions 변수 `AWS_ROLE_TO_ASSUME`에 `terraform output github_actions_role_arn` 값을 등록하고, GitHub Actions의 contents write 허용 여부를 확인한다. 테스트 실패 시 게시·태그 갱신은 중단된다. Actions가 만든 Kustomize 태그 커밋까지 확인한다.
 

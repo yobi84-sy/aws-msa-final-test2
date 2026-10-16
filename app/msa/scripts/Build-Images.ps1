@@ -16,12 +16,19 @@ $imageNames = [ordered]@{
     frontend = 'frontend-service'
 }
 # Git for Windows의 bash, JDK 17, Python 3, Node.js가 필요합니다.
+# Windows의 WSL 실행기보다 Git Bash를 우선하여 WSL 설치 여부에 의존하지 않습니다.
+$gitBash = Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Git/bin/bash.exe'
+$bashCommand = if ($env:OS -eq 'Windows_NT' -and (Test-Path -LiteralPath $gitBash)) {
+    $gitBash
+} else {
+    (Get-Command bash -ErrorAction Stop).Source
+}
 # 모든 선택 서비스의 테스트를 AWS 인증과 이미지 게시보다 먼저 완료합니다.
 $repoRoot = (Resolve-Path (Join-Path $appRoot '../..')).Path
 Push-Location $repoRoot
 try {
     foreach ($service in $Services) {
-        & bash scripts/ci/test-service.sh $service
+        & $bashCommand scripts/ci/test-service.sh $service
         if ($LASTEXITCODE -ne 0) { throw "$service 테스트 실패: 게시 중단" }
     }
 } finally { Pop-Location }
