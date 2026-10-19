@@ -18,6 +18,9 @@ override_data {
         az-a = { asg_name = "mock-final-az-a", min_size = 2, max_size = 2 }
         az-c = { asg_name = "mock-final-az-c", min_size = 2, max_size = 3 }
       }
+      manage_db_password                = true
+      database_secret_arn               = "arn:aws:secretsmanager:ap-northeast-2:143710973003:secret:mock-database"
+      database_secret_reader_role_arn   = "arn:aws:iam::143710973003:role/mock-secret-reader"
       db_address                        = "db.example.invalid"
       vpc_id                            = "vpc-0123456789abcdef0"
       cluster_autoscaler_role_arn       = "arn:aws:iam::143710973003:role/mock-ca"
@@ -31,6 +34,7 @@ override_data {
 }
 
 variables {
+  internal_service_token    = "mock-internal-service-token-only-32-chars"
   db_password               = "mock-password-only"
   github_token              = "mock-token-only"
   jwt_secret                = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
@@ -70,4 +74,9 @@ run "zonal_scheduling" {
     condition     = yamldecode(helm_release.monitoring.values[1]).prometheus.prometheusSpec.podAntiAffinity == ""
     error_message = "Disable the chart-generated anti-affinity so it cannot overwrite the custom rule."
   }
+  assert {
+    condition     = length(kubernetes_secret_v1.database) == 0 && length(helm_release.external_secrets) == 1 && length(helm_release.database_secret) == 1
+    error_message = "Managed password must have one ESO owner and no Terraform-owned password Secret."
+  }
+
 }

@@ -1,4 +1,4 @@
-# 조회 전용입니다. 결과가 없어도 실패와 구분하며 삭제 명령은 포함하지 않습니다.
+﻿# 조회 전용입니다. 결과가 없어도 실패와 구분하며 삭제 명령은 포함하지 않습니다.
 [CmdletBinding()]
 param(
     [string]$Profile = 'default',
@@ -75,6 +75,11 @@ Read-Aws 'SNS 프로젝트 토픽' @('sns','list-topics','--query',"Topics[?cont
 Read-Aws 'SQS 프로젝트 큐' @('sqs','list-queues','--queue-name-prefix','Final-','--query','QueueUrls')
 Read-Aws 'CloudTrail' @('cloudtrail','describe-trails','--query',"trailList[?starts_with(Name, 'Final-')]")
 Read-Aws 'ACM 프로젝트 도메인 인증서' @('acm','list-certificates','--query',"CertificateSummaryList[?DomainName == 'server.syong.store' || DomainName == 'argocd.syong.store']")
+Read-Aws '주문 이메일 Lambda' @('lambda','list-functions','--query',"Functions[?FunctionName == 'Final-order-email'].{Name:FunctionName,State:State}")
+Read-Aws '주문 이메일 Lambda 로그' @('logs','describe-log-groups','--log-group-name-prefix','/aws/lambda/Final-order-email','--query','logGroups')
+Read-Aws '이메일 중복 처리 DynamoDB' @('dynamodb','list-tables','--query',"TableNames[?@ == 'Final-order-email-dedup']")
+Read-Aws '프로젝트/RDS 비밀값 후보 (예약 삭제 포함)' @('secretsmanager','list-secrets','--include-planned-deletion','--query',"SecretList[?starts_with(Name, 'Final') || Tags[?(Key == 'Project' && Value == 'Final') || (Key == 'aws:rds:primaryDBInstanceArn' && contains(Value, ':db:final-ordermsa-db'))]].{Name:Name,Arn:ARN,Deleted:DeletedDate}")
+Write-Host 'SES 기존 인증 ID는 계정 공유 자원일 수 있어 자동 삭제 대상이 아닙니다. manage_ses_identities=true로 만든 전용 ID만 별도로 대조하세요.'
 Read-Aws '기존 Route53 호스팅 영역: 삭제하지 않음' @('route53','get-hosted-zone','--id','Z01939771EBX5SBI3T3FU','--query','HostedZone') -Retained
 Read-Aws 'Route53 프로젝트 레코드 후보' @('route53','list-resource-record-sets','--hosted-zone-id','Z01939771EBX5SBI3T3FU','--query',"ResourceRecordSets[?contains(Name, 'server.syong.store') || contains(Name, 'argocd.syong.store') || contains(Name, 'grafana.syong.store')]")
 Write-Host "`n완료: 조회 실패 $script:Failures 건. 목록은 지정 리전·태그·이름 기반 후보이며 무잔여를 보장하지 않습니다."

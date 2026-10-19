@@ -1,3 +1,5 @@
+> **test2 개선 코드:** 주문 복구·Outbox·고객 이메일·Secrets Manager·승인 배포를 추가했습니다. 아직 AWS에 적용한 결과는 아닙니다. [변경·적용·검증 안내](docs/11-test2-delivery.md)를 먼저 읽어주세요.
+
 # AWS · EKS 서비스 운영 프로젝트
 
 Terraform으로 AWS 인프라를 구성하고, GitHub Actions와 Argo CD로 앱을 배포한 운영 실습 프로젝트입니다.

@@ -49,7 +49,10 @@ function Set-JwtValue([string]$Key, [string]$EnvironmentName) {
 }
 
 # 환경 변수는 현재 PowerShell 창에서 실행하는 Terraform에만 전달
-if (-not $env:TF_VAR_db_password) {
+$infraRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../terraform'))
+$managed = & terraform "-chdir=$infraRoot" output -raw manage_db_password
+if ($LASTEXITCODE -ne 0) { throw 'infra apply 및 manage_db_password 출력을 확인하세요.' }
+if ($managed -ne 'true' -and -not $env:TF_VAR_db_password) {
     $env:TF_VAR_db_password = Read-SecretValue 'RDS 생성 시 사용한 DB 비밀번호'
 }
 if (-not $env:TF_VAR_github_token) {
@@ -57,5 +60,6 @@ if (-not $env:TF_VAR_github_token) {
 }
 Set-JwtValue 'JWT_SECRET' 'TF_VAR_jwt_secret'
 Set-JwtValue 'JWT_REFRESH_SECRET' 'TF_VAR_jwt_refresh_secret'
+Set-JwtValue 'INTERNAL_SERVICE_TOKEN' 'TF_VAR_internal_service_token'
 
 Write-Host '입력값 준비 완료. 같은 PowerShell 창에서 terraform plan/apply를 실행하세요.'

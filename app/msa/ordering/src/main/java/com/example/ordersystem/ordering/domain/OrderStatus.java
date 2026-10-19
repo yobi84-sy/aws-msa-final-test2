@@ -1,5 +1,10 @@
 package com.example.ordersystem.ordering.domain;
 
 public enum OrderStatus {
-    ORDERED, CANCELED
+  ORDERED,
+  CANCELED,
+  PENDING,
+  CONFIRMING,
+  COMPENSATING,
+  FAILED
 }

@@ -43,13 +43,18 @@ spec:
             cpu: "0.5"
             memory: "250Mi"
         env:
-        # 기존 운영 SNS의 구독 이메일로만 주문 알림 발송
+        # Outbox의 구조화된 주문 이벤트를 전용 SNS 토픽에 발행
         - name: ORDER_NOTIFICATIONS_ENABLED
           value: "true"
         - name: ORDER_NOTIFICATION_TOPIC_ARN
-          value: arn:aws:sns:ap-northeast-2:143710973003:Final-operations-alerts
+          value: arn:aws:sns:ap-northeast-2:143710973003:Final-order-events
         - name: AWS_REGION
           value: ap-northeast-2
+        - name: INTERNAL_SERVICE_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: my-app-secrets
+              key: INTERNAL_SERVICE_TOKEN
         - name: DB_HOST
           valueFrom:
             secretKeyRef:
@@ -58,7 +63,7 @@ spec:
         - name: DB_PW
           valueFrom:
             secretKeyRef:
-              name: my-app-secrets
+              name: db-credentials
               key: DB_PW
         # 컨테이너 상태 확인 
         # Java 애플리케이션 시작을 약 3분까지 기다림

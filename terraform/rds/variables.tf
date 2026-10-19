@@ -34,3 +34,8 @@ variable "db_password" {
   sensitive = true
   ephemeral = true
 }
+
+variable "manage_db_password" {
+  type    = bool
+  default = true
+}

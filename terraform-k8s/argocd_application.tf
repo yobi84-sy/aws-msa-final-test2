@@ -67,6 +67,8 @@ resource "helm_release" "argocd_application" {
   # 저장소 인증과 앱 Secret이 준비된 뒤 배포 대상 등록
   depends_on = [
     kubernetes_secret_v1.argocd_repository,
-    kubernetes_secret_v1.app
+    kubernetes_secret_v1.app,
+    kubernetes_secret_v1.database,
+    helm_release.database_secret
   ]
 }

@@ -1,17 +1,23 @@
 package com.example.ordersystem.ordering.service;
 
-import com.example.ordersystem.ordering.dto.ProductDto;
-import com.example.ordersystem.ordering.dto.ProductUpdateStockDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
 
-// Kubernetes Service DNS(product-service)를 직접 호출
-@FeignClient(name = "product-service", url="http://product-service")
+@FeignClient(name = "product-service", url = "${PRODUCT_SERVICE_URL:http://product-service}")
 public interface ProductFeign {
+  record Request(Long productId, Integer quantity) {}
 
-    @GetMapping("/product/{productId}")
-    ProductDto getProductById(@PathVariable("productId") Long productId, @RequestHeader("X-User-Id") String userId);
+  record Result(String reservationId, String state, String productName, Integer unitPrice) {}
 
-    @PutMapping("/product/updatestock")
-    void updateProductStock(@RequestBody ProductUpdateStockDto productUpdateStockDto);
+  @PutMapping("/product/internal/reservations/{id}")
+  Result reserve(
+      @PathVariable("id") String id,
+      @RequestHeader("X-Internal-Token") String token,
+      @RequestBody Request request);
+
+  @PostMapping("/product/internal/reservations/{id}/confirm")
+  Result confirm(@PathVariable("id") String id, @RequestHeader("X-Internal-Token") String token);
+
+  @PostMapping("/product/internal/reservations/{id}/release")
+  Result release(@PathVariable("id") String id, @RequestHeader("X-Internal-Token") String token);
 }

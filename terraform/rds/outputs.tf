@@ -27,3 +27,7 @@ output "db_name" {
 output "db_instance_identifier" {
   value = aws_db_instance.main.identifier
 }
+
+output "master_secret_arn" {
+  value = try(aws_db_instance.main.master_user_secret[0].secret_arn, null)
+}

@@ -57,9 +57,10 @@ resource "aws_db_instance" "main" {
   port     = 3306
 
   # 비밀번호를 state에 저장하지 않는 쓰기 전용 설정
-  password_wo = var.db_password
+  manage_master_user_password = var.manage_db_password
+  password_wo                 = var.manage_db_password ? null : var.db_password
   # 비밀번호를 변경할 때 함께 올리는 갱신 번호
-  password_wo_version = 1
+  password_wo_version = var.manage_db_password ? null : 1
 
   # 비용 절약용 저장 공간
   allocated_storage = 20

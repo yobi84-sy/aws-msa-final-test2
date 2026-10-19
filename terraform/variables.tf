@@ -126,13 +126,14 @@ variable "db_engine_version" {
 # DB 관리자 비밀번호
 # 파일과 Terraform state에 저장하지 않고 실행 시 전달
 variable "db_password" {
+  default   = null
   type      = string
   sensitive = true
   ephemeral = true
 
   # RDS MySQL의 관리자 비밀번호 길이 제한을 AWS 요청 전에 확인
   validation {
-    condition     = length(var.db_password) >= 8 && length(var.db_password) <= 41
+    condition     = var.db_password == null ? true : length(var.db_password) >= 8 && length(var.db_password) <= 41
     error_message = "RDS MySQL 비밀번호는 8~41자로 입력하세요."
   }
 }
@@ -147,4 +148,10 @@ variable "product_image_bucket_name" {
 # 운영 알림을 받을 이메일
 variable "alert_email" {
   type = string
+}
+
+# true에서는 RDS가 관리자 비밀번호를 생성하여 Secrets Manager에 저장합니다.
+variable "manage_db_password" {
+  type    = bool
+  default = true
 }

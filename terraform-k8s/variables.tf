@@ -44,6 +44,7 @@ variable "github_token" {
 
 # RDS 생성 시 사용한 비밀번호를 앱에도 동일하게 전달
 variable "db_password" {
+  default   = null
   type      = string
   sensitive = true
   ephemeral = true
@@ -76,7 +77,7 @@ variable "jwt_refresh_secret" {
 # 비밀번호나 JWT 키를 변경할 때 이 번호도 증가
 variable "app_secret_revision" {
   type    = number
-  default = 1
+  default = 2
 
   validation {
     condition     = var.app_secret_revision >= 1 && floor(var.app_secret_revision) == var.app_secret_revision
@@ -94,4 +95,15 @@ variable "enable_app_sync" {
 variable "enable_management_ingress" {
   type    = bool
   default = false
+}
+
+# 서비스 내부 재고/회원 API 전용 키. Prepare-Secrets.ps1에서 생성/재사용합니다.
+variable "internal_service_token" {
+  type      = string
+  sensitive = true
+  ephemeral = true
+  validation {
+    condition     = length(var.internal_service_token) >= 32
+    error_message = "내부 서비스 토큰은 32자 이상이어야 합니다."
+  }
 }

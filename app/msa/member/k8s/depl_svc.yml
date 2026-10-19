@@ -67,6 +67,11 @@ spec:
             secretKeyRef:
               name: my-app-secrets
               key: JWT_REFRESH_SECRET
+        - name: INTERNAL_SERVICE_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: my-app-secrets
+              key: INTERNAL_SERVICE_TOKEN
         - name: DB_HOST
           valueFrom:
             secretKeyRef:
@@ -75,7 +80,7 @@ spec:
         - name: DB_PW
           valueFrom:
             secretKeyRef:
-              name: my-app-secrets
+              name: db-credentials
               key: DB_PW
         # 컨테이너 상태 확인
         # Java 애플리케이션 시작을 약 3분까지 기다림

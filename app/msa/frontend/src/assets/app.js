@@ -40,7 +40,7 @@ function renderHeader() {
   // 메뉴 표시는 편의를 위한 것이며 실제 권한은 Gateway와 Nginx에서 검사한다.
   const nav = document.querySelector('.nav');
   if (nav && !nav.querySelector('[data-cart-link]')) {
-    nav.insertAdjacentHTML('afterbegin', '<a class="btn btn-light" data-cart-link href="/cart.html">장바구니</a><a class="btn btn-light" data-admin-only style="display:none" href="/admin.html">관리자</a>');
+    nav.insertAdjacentHTML('afterbegin', '<a class="btn btn-light" data-cart-link href="/cart.html">장바구니</a><a class="btn btn-light" data-auth-only href="/orders.html">주문 내역</a><a class="btn btn-light" data-admin-only style="display:none" href="/admin.html">관리자</a>');
   }
   const auth = getAuth();
   const userBox = document.getElementById('userBox');
@@ -108,7 +108,11 @@ async function apiRequest(url, options = {}) {
     const text = await response.text();
     let detail = text;
     try { const data = JSON.parse(text); detail = data.message || data.error || '요청에 실패했습니다.'; } catch {}
-    throw new Error(detail.length < 200 ? detail : '요청에 실패했습니다. 재고와 입력값을 확인해주세요.');
+
+    const error = new Error(detail.length < 200 ? detail : '요청에 실패했습니다. 재고와 입력값을 확인해주세요.');
+    error.status = response.status;
+    try { error.data = JSON.parse(text); } catch {}
+    throw error;
   }
 
   const contentType = response.headers.get('content-type') || '';
@@ -292,6 +296,7 @@ function addToCart(product, quantity) {
   const item = cart.find(item => item.id === Number(product.id));
   const total = quantity + (item?.quantity || 0);
   if (total > Math.min(999, product.stockQuantity)) throw new Error('장바구니 수량이 재고를 초과합니다.');
+  if (item?.requestKey) throw new Error('처리 중인 주문은 주문 내역에서 확인해주세요.');
   if (item) { item.quantity = total; item.price = product.price; item.name = product.name; }
   else cart.push({ id: Number(product.id), name: product.name, price: product.price, quantity });
   saveCart(cart);
@@ -304,12 +309,29 @@ async function checkoutCart() {
   const failures = [];
   for (const item of cart) {
     try {
-      await apiRequest('/ordering-service/ordering/create', { method: 'POST',
+      if (!item.requestKey) {
+        item.requestKey = crypto.randomUUID();
+        saveCart(readCart().map(row => row.id === item.id ? item : row));
+      }
+      let order = await apiRequest('/ordering-service/ordering/create', { method: 'POST',
+        headers: { 'Idempotency-Key': item.requestKey },
         body: JSON.stringify({ productId: item.id, productCount: item.quantity }) });
+      for (let attempt = 0; order.status !== 'ORDERED' && order.status !== 'FAILED' && attempt < 3; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        order = await apiRequest('/ordering-service/ordering/' + order.id, { method: 'GET' });
+      }
+      if (order.status !== 'ORDERED') {
+        const error = new Error(order.status === 'FAILED' ? '주문 실패: 재고 복구 완료. 다시 시도할 수 있습니다.' : '처리 중입니다. 주문 내역에서 확인해주세요.');
+        error.data = order; throw error;
+      }
       const remaining = readCart().filter(row => row.id !== item.id);
       saveCart(remaining);
       succeeded++;
     } catch (error) {
+
+      if (error.data?.status === 'FAILED') {
+        saveCart(readCart().map(row => row.id === item.id ? { ...row, requestKey: undefined } : row));
+      }
       failures.push(String(item.name) + ': ' + error.message);
     }
   }
@@ -337,6 +359,7 @@ function renderCart() {
       showMessage('cartMessage', '수량은 1~999개로 입력해주세요.', 'error'); renderCart(); return;
     }
     const rows = readCart();
+    if (rows.find(item => item.id === Number(input.dataset.quantity))?.requestKey) { showMessage('cartMessage', '처리 결과 확인 전에는 수량을 바꿀 수 없습니다.', 'error'); renderCart(); return; }
     rows.find(item => item.id === Number(input.dataset.quantity)).quantity = value;
     saveCart(rows); renderCart();
   });
@@ -355,4 +378,13 @@ function renderCart() {
       result.succeeded + '개 상품 주문 완료.' + (result.failures.length ? ' 주문하지 못한 상품은 장바구니에 남겼습니다. ' + result.failures.join(' / ') : ''),
       result.failures.length ? 'error' : 'success');
   };
+}
+
+async function renderOrders() {
+  const target = document.getElementById('orders');
+  try {
+    const rows = await apiRequest('/ordering-service/ordering/mine', { method: 'GET', cache: 'no-store' });
+    const labels = { ORDERED:'주문 완료', FAILED:'실패·재고 해제 완료', PENDING:'재고 확인 중', CONFIRMING:'주문 확정 중', COMPENSATING:'재고 복구 중', CANCELED:'취소' };
+    target.innerHTML = rows.length ? rows.map(o => `<article class="cart-row"><strong>주문 #${escapeHtml(o.id)}</strong><span>${escapeHtml(o.productName || '상품 #' + o.productId)}</span><span>${escapeHtml(o.quantity)}개</span><span>${escapeHtml(labels[o.status] || o.status)}</span></article>`).join('') : '<p>주문 내역이 없습니다.</p>';
+  } catch (error) { target.textContent = error.message; }
 }

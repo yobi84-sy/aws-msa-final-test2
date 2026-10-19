@@ -11,7 +11,7 @@ def update(text, services, tag):
         raise ValueError("잘못된 이미지 태그")
     for service in services:
         image = IMAGES[service]
-        pattern = r"(^  - name: 143710973003\.dkr\.ecr\.ap-northeast-2\.amazonaws\.com/" + image + r"\n    newTag: )[^\n]+"
+        pattern = r"(^  - name: 143710973003\.dkr\.ecr\.ap-northeast-2\.amazonaws\.com/" + image + r"\n    newTag: )[^\n]+(?:\n    digest: [^\n]+)?"
         text, count = re.subn(pattern, lambda m: m[1] + tag, text, flags=re.M)
         if count != 1:
             raise ValueError(f"이미지 항목은 정확히 하나여야 합니다: {service}")

@@ -3,21 +3,15 @@ on:
   workflow_dispatch:
     inputs:
       full_build:
-        description: '전체 5개 서비스 테스트 및 빌드 (게시 권한은 main만)'
+        description: '최초 재구축/게시 실패 복구용 전체 빌드 (AWS 게시는 main만)'
         type: boolean
         default: true
   push:
-    branches: [main, test]
-    paths:
-      - 'app/msa/**'
-      - 'scripts/ci/**'
-      - 'tests/**'
-      - '.github/workflows/build-push.yml'
+    branches: [main, test, test2]
   pull_request:
-    branches: [main, test]
+    branches: [main, test2]
 permissions:
   contents: read
-# main 게시 작업끼리 직렬화하며 test/PR은 별도 그룹입니다.
 concurrency:
   group: app-images-${{ github.ref }}
   cancel-in-progress: false
@@ -30,26 +24,49 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Test build selection and tag updates
+      - name: CI, consumer and recovery regression tests
         run: python3 -m unittest discover -s tests -v
       - id: select
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           FULL: ${{ github.event_name == 'workflow_dispatch' && inputs.full_build }}
-          EVENT: ${{ github.event_name }}
-          REF: ${{ github.ref }}
-        shell: bash
         run: |
-          set -euo pipefail
           if [ "$FULL" = true ]; then
             python3 scripts/ci/changed_services.py --all
-          elif [ "$REF" = refs/heads/main ] && [ "$EVENT" != pull_request ]; then
-            python3 scripts/ci/changed_services.py --since-image-tags
-          elif [ "$EVENT" = workflow_dispatch ]; then
-            python3 scripts/ci/changed_services.py --base HEAD^ --head HEAD
           else
             python3 scripts/ci/changed_services.py --base "$BASE" --head HEAD
           fi
+      - name: Validate release declaration
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python3 scripts/ci/release_manifest.py validate --base "$BASE"
+  config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.16.2'
+      - run: python3 -m pip install 'PyYAML==6.0.3'
+      - name: Terraform validate (no backend and no AWS authentication)
+        run: |
+          terraform fmt -check -recursive terraform terraform-k8s terraform-state-bootstrap
+          for root in terraform-state-bootstrap terraform terraform-k8s; do
+            terraform -chdir="$root" init -backend=false -input=false
+            terraform -chdir="$root" validate
+          done
+          terraform -chdir=terraform-k8s test -no-color
+      - name: Render GitOps manifests
+        run: kubectl kustomize app/msa > /tmp/apps.yaml
+      - uses: azure/setup-helm@v4
+        with:
+          version: 'v3.19.0'
+      - name: Validate database Secret chart
+        run: >-
+          helm lint terraform-k8s/charts/database-secret
+          --set region=ap-northeast-2
+          --set secretArn=arn:aws:secretsmanager:ap-northeast-2:143710973003:secret:mock
+          --set roleArn=arn:aws:iam::143710973003:role/mock
   test:
     needs: changes
     if: needs.changes.outputs.services != '[]'
@@ -67,63 +84,78 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run existing local tests and package
+      - name: Test and package
         run: bash scripts/ci/test-service.sh '${{ matrix.service }}'
-      - name: Build image without publishing
-        run: docker build --platform linux/amd64 -t local-check:${{ matrix.service }} app/msa/${{ matrix.service }}
+      - name: Build tested image
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: docker build --platform linux/amd64 -t local-check:$SERVICE app/msa/$SERVICE
       - name: Check frontend NGINX configuration
         if: matrix.service == 'frontend'
         run: docker run --rm --add-host apigateway-service:127.0.0.1 local-check:frontend nginx -t
+      - name: Save exact image for publishing (main only)
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: docker save local-check:$SERVICE | gzip > image.tar.gz
+      - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        with:
+          name: image-${{ matrix.service }}
+          path: image.tar.gz
+          retention-days: 2
+  gate:
+    name: required-ci
+    if: always()
+    needs: [changes, config, test]
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          CHANGES: ${{ needs.changes.result }}
+          CONFIG: ${{ needs.config.result }}
+          TEST: ${{ needs.test.result }}
+          SERVICES: ${{ needs.changes.outputs.services }}
+        run: |
+          test "$CHANGES" = success
+          test "$CONFIG" = success
+          if [ "$SERVICES" != '[]' ]; then test "$TEST" = success; fi
   publish:
-    needs: [changes, test]
-    # test push・PR・test에서의 수동 실행은 AWS 인증 단계에도 들어가지 않습니다.
+    needs: [changes, test, gate]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.test.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
       id-token: write
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Reject stale build and check role
-        env:
-          AWS_ROLE: ${{ vars.AWS_ROLE_TO_ASSUME }}
-        run: |
-          set -euo pipefail
-          test -n "$AWS_ROLE"
-          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$GITHUB_SHA"
+      - name: Refuse stale source
+        run: test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$GITHUB_SHA"
       - uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
           role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
           aws-region: ap-northeast-2
           allowed-account-ids: '143710973003'
       - uses: aws-actions/amazon-ecr-login@v2
-      - name: Build selected images, publish, then update selected tags
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: image-*
+          path: images
+      - name: Publish tested artifacts and create release proposal
         env:
           SERVICES_JSON: ${{ needs.changes.outputs.services }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t services < <(python3 -c 'import json,os; print("\n".join(json.loads(os.environ["SERVICES_JSON"])))')
-          registry=143710973003.dkr.ecr.ap-northeast-2.amazonaws.com
-          for service in "${services[@]}"; do
-            repo="$service-service"
-            if [ "$service" = apigateway ]; then repo=apigateway; fi
-            docker build --platform linux/amd64 -t "$registry/$repo:$GITHUB_SHA" "app/msa/$service"
-          done
-          # 모든 관련 테스트와 이미지 빌드 성공 후에만 게시합니다.
-          for service in "${services[@]}"; do
-            repo="$service-service"
-            if [ "$service" = apigateway ]; then repo=apigateway; fi
-            docker push "$registry/$repo:$GITHUB_SHA"
-          done
-          python3 scripts/ci/update_image_tags.py --tag "$GITHUB_SHA" "${services[@]}"
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add app/msa/kustomization.yaml
-          if ! git diff --cached --quiet; then
-            git commit -m "Update selected deployment images to $GITHUB_SHA"
-            # force push 금지: 중간에 main이 바뀌면 실패시켜 오래된 태그 반영을 차단합니다.
-            git push origin HEAD:main
-          fi
+        run: python3 scripts/ci/release_manifest.py publish
+      - name: Optional GitHub App token for normal PR check triggering
+        if: vars.RELEASE_APP_ID != ''
+        uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+      - name: Push a release branch and open PR (never main)
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+          SERVICES_JSON: ${{ needs.changes.outputs.services }}
+        run: python3 scripts/ci/release_manifest.py propose

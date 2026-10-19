@@ -5,6 +5,10 @@ terraform {
   required_version = ">= 1.12.0, < 2.0.0"
 
   required_providers {
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.7"
+    }
     aws = {
       # AWS 연결에 사용할 공식 provider
       source = "hashicorp/aws"

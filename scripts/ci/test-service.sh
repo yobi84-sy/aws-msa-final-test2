@@ -5,8 +5,8 @@ cd "$(dirname "$0")/../.."
 service=${1:?서비스 이름 필요}
 case "$service" in
   frontend) node --test app/msa/frontend/tests/*.test.cjs; exit ;;
-  member) tests=(--tests '*AdminAccessTest' --tests '*AdminDashboardAccessTest' --tests '*AdminDashboardServiceTest' --tests '*HealthGroupsTest') ;;
-  product) tests=(--tests '*StockConcurrencyTest') ;;
+  member) tests=(--tests '*AdminAccessTest' --tests '*AdminDashboardAccessTest' --tests '*AdminDashboardServiceTest' --tests '*HealthGroupsTest' --tests '*InternalMemberAccessTest') ;;
+  product) tests=(--tests '*StockConcurrencyTest' --tests '*ReservationWorkflowTest') ;;
   ordering) tests=(--tests '*OrderFeaturesTest') ;;
   apigateway)
     # 테스트 전용 임의 키이며 외부 서비스나 배포에 사용하지 않습니다.

@@ -1,17 +1,2 @@
-# 주문 서비스가 기존 운영 알림 SNS에만 발행할 수 있도록 허용
-resource "aws_iam_role_policy" "order_email_notifications" {
-  name = "${var.project_name}-order-email-notifications"
-  role = "${var.project_name}-ordering-sns-role"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["sns:Publish"]
-      Resource = module.monitoring.alerts_topic_arn
-    }]
-  })
-
-  # IAM 역할을 생성한 뒤 정책 연결
-  depends_on = [module.messaging]
-}
+# test2 이후 주문 이벤트는 messaging 모듈의 전용 SNS 토픽으로만 발행합니다.
+# 기존 운영자 알림 토픽에 대한 주문 역할의 추가 권한은 제거합니다.

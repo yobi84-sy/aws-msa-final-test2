@@ -36,7 +36,7 @@ resource "aws_sqs_queue" "order_notifications" {
   name = "${var.project_name}-order-notifications"
 
   # 소비자가 받은 메시지를 다른 소비자에게 잠시 숨김
-  visibility_timeout_seconds = 60
+  visibility_timeout_seconds = 120
 
   # 일반 메시지를 4일 보관
   message_retention_seconds = 345600

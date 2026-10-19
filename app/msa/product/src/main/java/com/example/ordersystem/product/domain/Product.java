@@ -13,36 +13,40 @@ import lombok.NoArgsConstructor;
 @Builder
 @Getter
 public class Product extends BaseTimeEntity {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Column(nullable = false)
-    private String name;
+  @Column(nullable = false)
+  private String name;
 
-    private String category;
+  private String category;
 
-    @Column(length = 1000)
-    private String description;
+  @Column(length = 1000)
+  private String description;
 
-    private String imageUrl;
+  private String imageUrl;
 
-    @Column(nullable = false)
-    private Integer price;
+  @Column(nullable = false)
+  private Integer price;
 
-    @Column(nullable = false)
-    private Integer stockQuantity;
+  @Column(nullable = false)
+  private Integer stockQuantity;
 
-    @Column(nullable = false)
-    private Long memberId;
+  @Column(nullable = false)
+  private Long memberId;
 
-    public void updateStockQuantity(int stockQuantity){
-        if (stockQuantity <= 0) {
-            throw new IllegalArgumentException("구매 수량은 1개 이상이어야 합니다.");
-        }
-        if (this.stockQuantity < stockQuantity) {
-            throw new IllegalArgumentException("재고가 부족합니다.");
-        }
-        this.stockQuantity = this.stockQuantity - stockQuantity;
+  public void restoreStock(int quantity) {
+    this.stockQuantity = Math.addExact(this.stockQuantity, quantity);
+  }
+
+  public void updateStockQuantity(int stockQuantity) {
+    if (stockQuantity <= 0) {
+      throw new IllegalArgumentException("구매 수량은 1개 이상이어야 합니다.");
     }
+    if (this.stockQuantity < stockQuantity) {
+      throw new IllegalArgumentException("재고가 부족합니다.");
+    }
+    this.stockQuantity = this.stockQuantity - stockQuantity;
+  }
 }
