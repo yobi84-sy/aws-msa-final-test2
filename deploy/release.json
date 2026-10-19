@@ -1,0 +1,33 @@
+{
+  "images": {
+    "member": {
+      "source": "ff65207e2a527d13473ffa516e0061f23fff4d64",
+      "digest": "sha256:ef3ca7f6615ececa74d4527e8ef0826dde96343d020970277e10fe8f3f55718a"
+    },
+    "product": {
+      "source": "ff65207e2a527d13473ffa516e0061f23fff4d64",
+      "digest": "sha256:05f94400006ea2479769eebfe53c3df7756fb354ca855945cf64440de0b36037"
+    },
+    "ordering": {
+      "source": "ff65207e2a527d13473ffa516e0061f23fff4d64",
+      "digest": "sha256:9ee94544fdb268ade3debfd64125edf09fb81c48a27830dda808e9606079a6f7"
+    },
+    "apigateway": {
+      "source": "ff65207e2a527d13473ffa516e0061f23fff4d64",
+      "digest": "sha256:33b3c2f51b2bf8db4673b57f1dba35f79fef89ffb399fb9fcee0531aea9916e0"
+    },
+    "frontend": {
+      "source": "ff65207e2a527d13473ffa516e0061f23fff4d64",
+      "digest": "sha256:69348435110431e3468776159fa9c3acd378f680743c7486a97e26fdbf69e283"
+    }
+  },
+  "intent": "release",
+  "updatedServices": [
+    "member",
+    "product",
+    "ordering",
+    "apigateway",
+    "frontend"
+  ],
+  "runId": "39215115059"
+}
