@@ -55,7 +55,7 @@ class DeliveryTests(unittest.TestCase):
         self.assertNotIn(digest,updated)
         with self.assertRaises(ValueError):release.pin(original,'frontend',sha,'bad')
     def test_tag_update_does_not_keep_previous_digest(self):
-        original=(ROOT/'app/msa/kustomization.yaml').read_text(encoding='utf-8')
+        original=(ROOT/'tests/fixtures/image-tags.yaml').read_text(encoding='utf-8')
         pinned=release.pin(original,'frontend','b'*40,'sha256:'+'a'*64)
         self.assertNotIn('digest: ',release.update(pinned,['frontend'],'c'*40))
     def test_deployment_must_match_images_generation_and_replicas(self):
