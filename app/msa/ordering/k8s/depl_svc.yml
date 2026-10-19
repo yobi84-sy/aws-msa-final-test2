@@ -29,7 +29,7 @@ spec:
       serviceAccountName: ordering-service-account
       containers:
       - name: ordering-container
-        image: 143710973003.dkr.ecr.ap-northeast-2.amazonaws.com/ordering-service:lab-v1
+        image: 021158485482.dkr.ecr.ap-northeast-2.amazonaws.com/ordering-service:lab-v1
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
@@ -47,7 +47,7 @@ spec:
         - name: ORDER_NOTIFICATIONS_ENABLED
           value: "true"
         - name: ORDER_NOTIFICATION_TOPIC_ARN
-          value: arn:aws:sns:ap-northeast-2:143710973003:Final-order-events
+          value: arn:aws:sns:ap-northeast-2:021158485482:Final-order-events
         - name: AWS_REGION
           value: ap-northeast-2
         - name: INTERNAL_SERVICE_TOKEN

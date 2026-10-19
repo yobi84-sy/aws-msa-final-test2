@@ -7,7 +7,7 @@ variable "aws_region" {
 # 기존 Terraform과 동일한 AWS CLI 프로필
 variable "aws_profile" {
   type    = string
-  default = "default"
+  default = "eks-user"
 }
 
 # 내부 도구를 설치할 EKS 클러스터 이름
@@ -19,7 +19,7 @@ variable "cluster_name" {
 # Argo CD가 읽을 GitHub 저장소
 variable "github_repo_url" {
   type    = string
-  default = "https://github.com/yonginfra/aws-msa-final-project.git"
+  default = "https://github.com/yobi84-sy/aws-msa-final-test2.git"
 }
 
 # 저장소 읽기 토큰을 발급한 GitHub 사용자
@@ -32,7 +32,7 @@ variable "github_revision" {
 # 저장소 읽기 토큰을 발급한 GitHub 사용자
 variable "github_username" {
   type    = string
-  default = "yonginfra"
+  default = "yobi84-sy"
 }
 
 # 실행할 때만 전달하고 Terraform 상태 파일에는 저장하지 않음

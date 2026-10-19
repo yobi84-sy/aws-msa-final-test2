@@ -4,7 +4,7 @@ param(
     [ValidateSet('Inspect','Snapshot','Restore','CleanupDb','CleanupSnapshot')][string]$Mode = 'Inspect',
     [ValidatePattern('^final-rehearsal-[a-z0-9-]+$')][string]$SnapshotId,
     [ValidatePattern('^final-restore-[a-z0-9-]+$')][string]$RestoreDbId,
-    [string]$Profile = 'default',
+    [string]$Profile = 'eks-user',
     [string]$Region = 'ap-northeast-2'
 )
 $ErrorActionPreference = 'Stop'
@@ -21,7 +21,7 @@ function Require-LabTag($Tags) {
     }
 }
 $identity = Invoke-AwsJson @('sts','get-caller-identity')
-if ($identity.Account -ne '143710973003') { throw '프로젝트 AWS 계정과 다릅니다.' }
+if ($identity.Account -ne '021158485482') { throw '프로젝트 AWS 계정과 다릅니다.' }
 if ($Mode -eq 'Inspect') {
     $data = Invoke-AwsJson @('rds','describe-db-instances')
     $data.DBInstances | Where-Object { $_.DBInstanceIdentifier -eq $sourceId -or $_.DBInstanceIdentifier.StartsWith('final-restore-') } |

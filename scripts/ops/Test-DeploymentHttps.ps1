@@ -1,7 +1,7 @@
 # Argo CD 배포 완료를 확인한 뒤 실행하는 읽기 전용 HTTPS 점검입니다.
 [CmdletBinding()]
 param(
-    [uri]$BaseUrl = 'https://server.syong.store',
+    [uri]$BaseUrl = 'https://server.sy84.store',
     [ValidateRange(1,100)][int]$Attempts = 12,
     [ValidateRange(1,60)][int]$TimeoutSeconds = 10,
     [ValidateRange(0,60)][int]$RetryDelaySeconds = 10

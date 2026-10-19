@@ -27,7 +27,7 @@ source = {'DBInstanceIdentifier':'final-ordermsa-db', 'DBInstanceClass':'db.t4g.
 if '--query' in args:
     result = []
 elif action == 'sts get-caller-identity':
-    result = {'Account':'143710973003'}
+    result = {'Account':'021158485482'}
 elif action == 'ec2 describe-vpcs':
     result = {'Vpcs':[{'VpcId':'vpc-mock','Tags':[{'Key':'Project','Value':'Final'}]}] if os.environ.get('MOCK_VPC') else []}
 elif action == 'rds describe-db-instances':

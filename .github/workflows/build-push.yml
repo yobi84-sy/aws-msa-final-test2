@@ -65,8 +65,8 @@ jobs:
         run: >-
           helm lint terraform-k8s/charts/database-secret
           --set region=ap-northeast-2
-          --set secretArn=arn:aws:secretsmanager:ap-northeast-2:143710973003:secret:mock
-          --set roleArn=arn:aws:iam::143710973003:role/mock
+          --set secretArn=arn:aws:secretsmanager:ap-northeast-2:021158485482:secret:mock
+          --set roleArn=arn:aws:iam::021158485482:role/mock
   test:
     needs: changes
     if: needs.changes.outputs.services != '[]'
@@ -137,7 +137,7 @@ jobs:
         with:
           role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
           aws-region: ap-northeast-2
-          allowed-account-ids: '143710973003'
+          allowed-account-ids: '021158485482'
       - uses: aws-actions/amazon-ecr-login@v2
       - uses: actions/download-artifact@v4
         with:

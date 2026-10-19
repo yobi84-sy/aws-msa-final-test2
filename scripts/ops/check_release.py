@@ -37,7 +37,7 @@ def http_checks(base):
                 if not isinstance(data,list) or any(not isinstance(p,dict) or not all(k in p for k in ('id','name','price','stockQuantity')) for p in data):raise ValueError('Invalid product API contract')
 def main():
     import yaml
-    p=argparse.ArgumentParser();p.add_argument('--revision',required=True);p.add_argument('--url',default='https://server.syong.store');p.add_argument('--timeout',type=int,default=600);args=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('--revision',required=True);p.add_argument('--url',default='https://server.sy84.store');p.add_argument('--timeout',type=int,default=600);args=p.parse_args()
     rendered=subprocess.check_output(['kubectl','kustomize','app/msa'],text=True,encoding='utf-8',timeout=30)
     expected=[d for d in yaml.safe_load_all(rendered) if d and d.get('kind')=='Deployment']
     if len(expected)!=5:raise ValueError('Expected five application deployments')

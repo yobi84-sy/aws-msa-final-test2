@@ -9,7 +9,7 @@ metadata:
   namespace: kube-system
   annotations:
     # Terraform에서 준비한 CA 전용 IAM 역할 연결
-    eks.amazonaws.com/role-arn: arn:aws:iam::143710973003:role/Final-cluster-autoscaler-role
+    eks.amazonaws.com/role-arn: arn:aws:iam::021158485482:role/Final-cluster-autoscaler-role
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

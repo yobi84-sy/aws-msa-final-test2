@@ -29,7 +29,7 @@ spec:
       serviceAccountName: product-service-account
       containers:
         - name: product-container
-          image: 143710973003.dkr.ecr.ap-northeast-2.amazonaws.com/product-service:lab-v1
+          image: 021158485482.dkr.ecr.ap-northeast-2.amazonaws.com/product-service:lab-v1
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
@@ -60,7 +60,7 @@ spec:
                   key: DB_PW
             # Terraform에서 생성할 상품 이미지 버킷
             - name: S3_BUCKET_NAME
-              value: "final-product-images-143710973003-ap-northeast-2"
+              value: "final-product-images-021158485482-ap-northeast-2"
           # Java 애플리케이션 시작을 약 3분까지 기다림
           startupProbe:
             httpGet:

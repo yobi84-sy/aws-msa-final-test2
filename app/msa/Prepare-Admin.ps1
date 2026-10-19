@@ -1,7 +1,7 @@
 ﻿# 관리자 비밀번호를 Git에 저장하지 않고 Kubernetes Secret으로 준비한다.
 $ErrorActionPreference = 'Stop'
 $context = kubectl config current-context
-if ($LASTEXITCODE -ne 0 -or $context -ne 'arn:aws:eks:ap-northeast-2:143710973003:cluster/Final-eks') {
+if ($LASTEXITCODE -ne 0 -or $context -ne 'arn:aws:eks:ap-northeast-2:021158485482:cluster/Final-eks') {
     throw 'Final-eks 클러스터에 연결한 PowerShell에서 실행하세요.'
 }
 $securePassword = Read-Host '새 관리자 비밀번호 (12~64자, 입력은 표시되지 않음)' -AsSecureString
@@ -19,7 +19,7 @@ try {
         type = 'Opaque'
         data = @{
             'admin-password' = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($passwordText))
-            'admin-email' = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('admin@syong.store'))
+            'admin-email' = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('admin@sy84.store'))
         }
     }
     $secret | ConvertTo-Json -Depth 5 -Compress | kubectl apply --server-side --field-manager=final-admin-setup -f -

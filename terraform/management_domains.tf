@@ -1,8 +1,8 @@
 # Argo CD와 Grafana가 사용할 관리 화면 도메인
 locals {
   management_domains = {
-    argocd  = "argocd.syong.store"
-    grafana = "grafana.syong.store"
+    argocd  = "argocd.sy84.store"
+    grafana = "grafana.sy84.store"
   }
 }
 

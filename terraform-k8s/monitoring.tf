@@ -49,8 +49,8 @@ resource "helm_release" "monitoring" {
       grafana = merge(var.enable_management_ingress ? {
         "grafana.ini" = {
           server = {
-            domain   = "grafana.syong.store"
-            root_url = "https://grafana.syong.store"
+            domain   = "grafana.sy84.store"
+            root_url = "https://grafana.sy84.store"
           }
           # 대시보드는 기존 로그인 인증을 유지
           "auth.anonymous" = {

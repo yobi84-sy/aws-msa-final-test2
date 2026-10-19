@@ -1,9 +1,9 @@
 ﻿# 조회 전용입니다. 결과가 없어도 실패와 구분하며 삭제 명령은 포함하지 않습니다.
 [CmdletBinding()]
 param(
-    [string]$Profile = 'default',
+    [string]$Profile = 'eks-user',
     [string]$Region = 'ap-northeast-2',
-    [string]$StateBucket = 'final-tfstate-143710973003-ap-northeast-2'
+    [string]$StateBucket = 'final-tfstate-021158485482-ap-northeast-2'
 )
 $ErrorActionPreference = 'Stop'
 $env:AWS_PAGER = ''
@@ -27,7 +27,7 @@ function Read-Aws([string]$Label, [string[]]$Arguments, [switch]$Retained) {
 }
 $identity = & aws sts get-caller-identity --profile $Profile --region $Region --output json --no-cli-pager
 if ($LASTEXITCODE -ne 0) { throw 'AWS 계정 조회 실패. 이후 조회를 중단합니다.' }
-if (($identity | ConvertFrom-Json).Account -ne '143710973003') { throw '프로젝트 AWS 계정과 다릅니다.' }
+if (($identity | ConvertFrom-Json).Account -ne '021158485482') { throw '프로젝트 AWS 계정과 다릅니다.' }
 Read-Aws 'Project=Final 태그 자원 (보조 목록, 미태그 자원은 아래 별도 조회)' @('resourcegroupstaggingapi','get-resources','--tag-filters','Key=Project,Values=Final','--query','ResourceTagMappingList')
 Read-Aws 'EKS 및 노드그룹 존재 여부 (클러스터가 남으면 콘솔에서 노드그룹도 확인)' @('eks','list-clusters','--query',"clusters[?@ == 'Final-eks']")
 Read-Aws 'RDS 본 DB와 복원 실습 DB' @('rds','describe-db-instances','--query',"DBInstances[?starts_with(DBInstanceIdentifier, 'final-')].{Id:DBInstanceIdentifier,Status:DBInstanceStatus,Endpoint:Endpoint.Address}")
@@ -74,13 +74,13 @@ Read-Aws 'CloudWatch 프로젝트 알람' @('cloudwatch','describe-alarms','--qu
 Read-Aws 'SNS 프로젝트 토픽' @('sns','list-topics','--query',"Topics[?contains(TopicArn, ':Final-')]")
 Read-Aws 'SQS 프로젝트 큐' @('sqs','list-queues','--queue-name-prefix','Final-','--query','QueueUrls')
 Read-Aws 'CloudTrail' @('cloudtrail','describe-trails','--query',"trailList[?starts_with(Name, 'Final-')]")
-Read-Aws 'ACM 프로젝트 도메인 인증서' @('acm','list-certificates','--query',"CertificateSummaryList[?DomainName == 'server.syong.store' || DomainName == 'argocd.syong.store']")
+Read-Aws 'ACM 프로젝트 도메인 인증서' @('acm','list-certificates','--query',"CertificateSummaryList[?DomainName == 'server.sy84.store' || DomainName == 'argocd.sy84.store']")
 Read-Aws '주문 이메일 Lambda' @('lambda','list-functions','--query',"Functions[?FunctionName == 'Final-order-email'].{Name:FunctionName,State:State}")
 Read-Aws '주문 이메일 Lambda 로그' @('logs','describe-log-groups','--log-group-name-prefix','/aws/lambda/Final-order-email','--query','logGroups')
 Read-Aws '이메일 중복 처리 DynamoDB' @('dynamodb','list-tables','--query',"TableNames[?@ == 'Final-order-email-dedup']")
 Read-Aws '프로젝트/RDS 비밀값 후보 (예약 삭제 포함)' @('secretsmanager','list-secrets','--include-planned-deletion','--query',"SecretList[?starts_with(Name, 'Final') || Tags[?(Key == 'Project' && Value == 'Final') || (Key == 'aws:rds:primaryDBInstanceArn' && contains(Value, ':db:final-ordermsa-db'))]].{Name:Name,Arn:ARN,Deleted:DeletedDate}")
 Write-Host 'SES 기존 인증 ID는 계정 공유 자원일 수 있어 자동 삭제 대상이 아닙니다. manage_ses_identities=true로 만든 전용 ID만 별도로 대조하세요.'
-Read-Aws '기존 Route53 호스팅 영역: 삭제하지 않음' @('route53','get-hosted-zone','--id','Z01939771EBX5SBI3T3FU','--query','HostedZone') -Retained
-Read-Aws 'Route53 프로젝트 레코드 후보' @('route53','list-resource-record-sets','--hosted-zone-id','Z01939771EBX5SBI3T3FU','--query',"ResourceRecordSets[?contains(Name, 'server.syong.store') || contains(Name, 'argocd.syong.store') || contains(Name, 'grafana.syong.store')]")
+Read-Aws '기존 Route53 호스팅 영역: 삭제하지 않음' @('route53','get-hosted-zone','--id','Z03158761YPLKM1NEY8PO','--query','HostedZone') -Retained
+Read-Aws 'Route53 프로젝트 레코드 후보' @('route53','list-resource-record-sets','--hosted-zone-id','Z03158761YPLKM1NEY8PO','--query',"ResourceRecordSets[?contains(Name, 'server.sy84.store') || contains(Name, 'argocd.sy84.store') || contains(Name, 'grafana.sy84.store')]")
 Write-Host "`n완료: 조회 실패 $script:Failures 건. 목록은 지정 리전·태그·이름 기반 후보이며 무잔여를 보장하지 않습니다."
 if ($script:Failures -gt 0) { exit 1 }

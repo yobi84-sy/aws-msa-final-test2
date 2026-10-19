@@ -19,16 +19,16 @@ override_data {
         az-c = { asg_name = "mock-final-az-c", min_size = 2, max_size = 3 }
       }
       manage_db_password                = true
-      database_secret_arn               = "arn:aws:secretsmanager:ap-northeast-2:143710973003:secret:mock-database"
-      database_secret_reader_role_arn   = "arn:aws:iam::143710973003:role/mock-secret-reader"
+      database_secret_arn               = "arn:aws:secretsmanager:ap-northeast-2:021158485482:secret:mock-database"
+      database_secret_reader_role_arn   = "arn:aws:iam::021158485482:role/mock-secret-reader"
       db_address                        = "db.example.invalid"
       vpc_id                            = "vpc-0123456789abcdef0"
-      cluster_autoscaler_role_arn       = "arn:aws:iam::143710973003:role/mock-ca"
-      load_balancer_controller_role_arn = "arn:aws:iam::143710973003:role/mock-lb"
-      alertmanager_role_arn             = "arn:aws:iam::143710973003:role/mock-alertmanager"
-      operations_alerts_topic_arn       = "arn:aws:sns:ap-northeast-2:143710973003:mock-alerts"
-      management_certificate_arn        = "arn:aws:acm:ap-northeast-2:143710973003:certificate/mock-management"
-      website_certificate_arn           = "arn:aws:acm:ap-northeast-2:143710973003:certificate/mock-website"
+      cluster_autoscaler_role_arn       = "arn:aws:iam::021158485482:role/mock-ca"
+      load_balancer_controller_role_arn = "arn:aws:iam::021158485482:role/mock-lb"
+      alertmanager_role_arn             = "arn:aws:iam::021158485482:role/mock-alertmanager"
+      operations_alerts_topic_arn       = "arn:aws:sns:ap-northeast-2:021158485482:mock-alerts"
+      management_certificate_arn        = "arn:aws:acm:ap-northeast-2:021158485482:certificate/mock-management"
+      website_certificate_arn           = "arn:aws:acm:ap-northeast-2:021158485482:certificate/mock-website"
     }
   }
 }

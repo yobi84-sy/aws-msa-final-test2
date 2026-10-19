@@ -27,7 +27,7 @@ spec:
               app: apigateway
       containers:
       - name: apigateway-container
-        image: 143710973003.dkr.ecr.ap-northeast-2.amazonaws.com/apigateway:lab-v1
+        image: 021158485482.dkr.ecr.ap-northeast-2.amazonaws.com/apigateway:lab-v1
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

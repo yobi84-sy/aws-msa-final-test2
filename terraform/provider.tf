@@ -3,7 +3,7 @@ provider "aws" {
   region = "ap-northeast-2"
 
   # Profile Default
-  profile = "default"
+  profile = "eks-user"
 
   # 콘솔에서 알기 쉽도록 Tag
   default_tags {

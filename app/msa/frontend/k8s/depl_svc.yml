@@ -47,7 +47,7 @@ spec:
                 command: ["/bin/sh", "-c", "sleep 15"]
 
           # 이번에 빌드한 프런트엔드 이미지
-          image: 143710973003.dkr.ecr.ap-northeast-2.amazonaws.com/frontend-service:lab-v1
+          image: 021158485482.dkr.ecr.ap-northeast-2.amazonaws.com/frontend-service:lab-v1
           imagePullPolicy: Always
 
           ports:

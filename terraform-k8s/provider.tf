@@ -4,7 +4,7 @@ provider "aws" {
   profile = var.aws_profile
 
   # 다른 계정에서 실행되는 것을 방지
-  allowed_account_ids = ["143710973003"]
+  allowed_account_ids = ["021158485482"]
 }
 
 # AWS 인프라 단계에서 생성한 EKS 정보 조회

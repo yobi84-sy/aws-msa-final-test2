@@ -8,7 +8,7 @@ serviceAccount:
   name: aws-load-balancer-controller
   annotations:
     # Terraform의 IAM 신뢰 정책과 동일한 계정 이름
-    eks.amazonaws.com/role-arn: arn:aws:iam::143710973003:role/Final-load-balancer-controller-role
+    eks.amazonaws.com/role-arn: arn:aws:iam::021158485482:role/Final-load-balancer-controller-role
 resources:
   requests:
     cpu: 100m

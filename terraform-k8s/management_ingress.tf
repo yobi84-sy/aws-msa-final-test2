@@ -3,7 +3,7 @@
 locals {
   management_services = {
     argocd = {
-      host             = "argocd.syong.store"
+      host             = "argocd.sy84.store"
       namespace        = kubernetes_namespace_v1.argocd.metadata[0].name
       service          = "argocd-server"
       port             = 443
@@ -11,7 +11,7 @@ locals {
       healthcheck_path = "/healthz"
     }
     grafana = {
-      host             = "grafana.syong.store"
+      host             = "grafana.sy84.store"
       namespace        = kubernetes_namespace_v1.monitoring.metadata[0].name
       service          = "monitoring-grafana"
       port             = 80

@@ -13,5 +13,5 @@ variable "ecr_repository_arns" {
 variable "github_oidc_subject" {
   type = string
 
-  default = "repo:yonginfra@336437335/aws-msa-final-project@1416496287:ref:refs/heads/main"
+  default = "repo:yobi84-sy@306224385/aws-msa-final-test2@1425236181:ref:refs/heads/main"
 }

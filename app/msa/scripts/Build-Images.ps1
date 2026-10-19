@@ -7,7 +7,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $appRoot = Split-Path $PSScriptRoot -Parent
-$registry = '143710973003.dkr.ecr.ap-northeast-2.amazonaws.com'
+$registry = '021158485482.dkr.ecr.ap-northeast-2.amazonaws.com'
 $imageNames = [ordered]@{
     member = 'member-service'
     product = 'product-service'
@@ -36,7 +36,7 @@ try {
 } finally { Pop-Location }
 if ($Push) {
     $account = & aws sts get-caller-identity --query Account --output text
-    if ($LASTEXITCODE -ne 0 -or $account.Trim() -ne '143710973003') { throw 'AWS 계정이 프로젝트와 다릅니다.' }
+    if ($LASTEXITCODE -ne 0 -or $account.Trim() -ne '021158485482') { throw 'AWS 계정이 프로젝트와 다릅니다.' }
     $token = & aws ecr get-login-password --region ap-northeast-2
     if ($LASTEXITCODE -ne 0) { throw 'ECR 로그인 토큰을 가져오지 못했습니다.' }
     $token | & docker login --username AWS --password-stdin $registry

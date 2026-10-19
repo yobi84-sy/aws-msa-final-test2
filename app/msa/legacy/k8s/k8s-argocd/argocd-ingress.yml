@@ -9,10 +9,10 @@ metadata:
 spec:
   tls:
   - hosts:
-      - argo.syong.store
+      - argo.sy84.store
     secretName: argo-syong-store-tls
   rules:
-  - host: argo.syong.store
+  - host: argo.sy84.store
     http:
       paths:
         - path: /

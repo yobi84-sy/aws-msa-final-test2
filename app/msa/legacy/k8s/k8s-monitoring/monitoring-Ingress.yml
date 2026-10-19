@@ -10,11 +10,11 @@ spec:
   ingressClassName: nginx
   tls:
   - hosts:
-    - prometheus.syong.store
-    - grafana.syong.store
+    - prometheus.sy84.store
+    - grafana.sy84.store
     secretName: monitoring-syong-store-tls
   rules:
-  - host: prometheus.syong.store
+  - host: prometheus.sy84.store
     http:
       paths:
       - path: /
@@ -25,7 +25,7 @@ spec:
             port:
               number: 9090
 
-  - host: grafana.syong.store
+  - host: grafana.sy84.store
     http:
       paths:
       - path: /

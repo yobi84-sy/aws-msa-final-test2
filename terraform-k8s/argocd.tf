@@ -17,7 +17,7 @@ resource "helm_release" "argocd" {
     yamlencode({
       configs = {
         cm = {
-          url = var.enable_management_ingress ? "https://argocd.syong.store" : "https://argocd.example.com"
+          url = var.enable_management_ingress ? "https://argocd.sy84.store" : "https://argocd.example.com"
         }
       }
     })

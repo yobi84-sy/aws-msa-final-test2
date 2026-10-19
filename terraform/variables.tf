@@ -142,7 +142,7 @@ variable "db_password" {
 # S3 버킷 이름은 다른 사용자와도 중복될 수 없음
 variable "product_image_bucket_name" {
   type    = string
-  default = "final-product-images-143710973003-ap-northeast-2"
+  default = "final-product-images-021158485482-ap-northeast-2"
 }
 
 # 운영 알림을 받을 이메일

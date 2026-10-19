@@ -103,7 +103,7 @@ alertmanager:
     # Terraform IAM 신뢰 정책의 ServiceAccount 이름과 일치
     name: alertmanager
     annotations:
-      eks.amazonaws.com/role-arn: arn:aws:iam::143710973003:role/Final-alertmanager-sns-role
+      eks.amazonaws.com/role-arn: arn:aws:iam::021158485482:role/Final-alertmanager-sns-role
   # 아래 config의 Go 템플릿은 Helm이 아닌 Alertmanager가 처리
   tplConfig: false
   config:
@@ -127,7 +127,7 @@ alertmanager:
           # IAM 역할의 임시 자격증명을 사용하므로 액세스 키를 넣지 않음
           - sigv4:
               region: ap-northeast-2
-            topic_arn: arn:aws:sns:ap-northeast-2:143710973003:Final-operations-alerts
+            topic_arn: arn:aws:sns:ap-northeast-2:021158485482:Final-operations-alerts
             send_resolved: true
             subject: '[Final] {{ .Status }}: {{ .GroupLabels.alertname }}'
             message: |-

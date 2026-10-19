@@ -12,7 +12,7 @@ from changed_services import select, SERVICES, diff_paths
 from update_image_tags import update, IMAGES
 MANIFEST=Path('app/msa/kustomization.yaml')
 RELEASE=Path('deploy/release.json')
-REGISTRY='143710973003.dkr.ecr.ap-northeast-2.amazonaws.com'
+REGISTRY='021158485482.dkr.ecr.ap-northeast-2.amazonaws.com'
 def run(*args):
     return subprocess.check_output(args,text=True,encoding="utf-8").strip()
 def pin(text, service, sha, digest):

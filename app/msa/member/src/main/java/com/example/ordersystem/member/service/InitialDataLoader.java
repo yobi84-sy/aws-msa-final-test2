@@ -17,7 +17,7 @@ public class InitialDataLoader implements CommandLineRunner {
 
     public InitialDataLoader(MemberRepository repository, PasswordEncoder encoder,
             @Value("${ADMIN_BOOTSTRAP_PASSWORD:}") String password,
-            @Value("${ADMIN_BOOTSTRAP_EMAIL:admin@syong.store}") String email) {
+            @Value("${ADMIN_BOOTSTRAP_EMAIL:admin@sy84.store}") String email) {
         this.repository = repository; this.encoder = encoder;
         this.password = password; this.email = email;
     }

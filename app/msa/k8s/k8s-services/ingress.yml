@@ -25,7 +25,7 @@ spec:
   ingressClassName: alb
   # 웹사이트 도메인과 일치하는 요청 처리
   rules:
-  - host: server.syong.store
+  - host: server.sy84.store
     http:
       paths:
       # 회원 API 요청은 Gateway로 전달

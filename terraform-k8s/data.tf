@@ -2,11 +2,11 @@
 data "terraform_remote_state" "infra" {
   backend = "s3"
   config = {
-    bucket              = "final-tfstate-143710973003-ap-northeast-2"
+    bucket              = "final-tfstate-021158485482-ap-northeast-2"
     key                 = "final/infra/terraform.tfstate"
     region              = "ap-northeast-2"
     profile             = var.aws_profile
     encrypt             = true
-    allowed_account_ids = ["143710973003"]
+    allowed_account_ids = ["021158485482"]
   }
 }

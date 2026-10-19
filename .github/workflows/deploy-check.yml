@@ -22,7 +22,7 @@ jobs:
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_CHECK_ROLE_ARN }}
           aws-region: ap-northeast-2
-          allowed-account-ids: '143710973003'
+          allowed-account-ids: '021158485482'
       - uses: azure/setup-kubectl@v4
         with:
           version: 'v1.35.0'

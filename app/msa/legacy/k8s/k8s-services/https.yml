@@ -30,7 +30,7 @@ spec:
   issuerRef:
     name: my-issuer
     kind: ClusterIssuer
-  commonName: server.syong.store
+  commonName: server.sy84.store
   dnsNames:
-  - server.syong.store
+  - server.sy84.store
 
