@@ -83,7 +83,7 @@ resource "aws_lambda_function" "order_email" {
   source_code_hash               = data.archive_file.order_email[0].output_base64sha256
   timeout                        = 20
   memory_size                    = 128
-  reserved_concurrent_executions = 2
+  reserved_concurrent_executions = -1
   environment {
     variables = {
       SENDER_EMAIL = var.customer_email_sender
