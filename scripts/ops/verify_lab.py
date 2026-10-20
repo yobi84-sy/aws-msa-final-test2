@@ -16,8 +16,10 @@ def run(*args):
     result = subprocess.run(args, text=True, encoding='utf-8', capture_output=True, timeout=45)
     if result.returncode:
         raise RuntimeError('query failed: ' + ' '.join(args[:2]))
-    # AWS stop-logging succeeds with no response body. Empty query output is still an error.
-    if not result.stdout.strip() and args[:3] == ('aws', 'cloudtrail', 'stop-logging'):
+    # These mutations may succeed with no response body (S3 quiet mode).
+    # Empty query output remains an error rather than being treated as absent resources.
+    empty_success = {('aws', 'cloudtrail', 'stop-logging'), ('aws', 's3api', 'delete-objects')}
+    if not result.stdout.strip() and args[:3] in empty_success:
         return {}
     return json.loads(result.stdout)
 

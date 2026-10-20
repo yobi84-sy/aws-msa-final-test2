@@ -113,10 +113,35 @@ class CredentialPropagationTests(unittest.TestCase):
             sync.fingerprint({'data': {}})
 
 
+class StoragePayloadTests(unittest.TestCase):
+    def test_large_s3_version_batch_uses_temporary_file_and_checks_errors(self):
+        saved_paths = []
+        listed = [False]
+        def fake_aws(service, operation, *args):
+            if operation == 'list-object-versions':
+                if listed[0]: return {}
+                listed[0] = True
+                return {'Versions': [{'Key': 'long-key-' + 'x' * 100 + str(i), 'VersionId': str(i)} for i in range(1000)]}
+            if operation == 'list-objects-v2': return {}
+            if operation == 'delete-objects':
+                request = args[args.index('--delete') + 1]
+                self.assertTrue(request.startswith('file://'))
+                path = Path(request[7:]);saved_paths.append(path)
+                import json
+                self.assertEqual(len(json.loads(path.read_text(encoding='utf-8'))['Objects']), 1000)
+                return {}
+            self.fail(operation)
+        with patch.object(destroy, 'aws', side_effect=fake_aws), patch.object(destroy.time, 'sleep'):
+            destroy.clear_bucket(destroy.BUCKETS[0])
+        self.assertEqual(len(saved_paths), 1)
+        self.assertFalse(saved_paths[0].exists())
+
+
 class EmptyAwsResponseTests(unittest.TestCase):
     def test_successful_stop_logging_has_no_json_body(self):
         with patch.object(verify.subprocess, 'run', return_value=MagicMock(returncode=0, stdout='')):
             self.assertEqual(verify.run('aws', 'cloudtrail', 'stop-logging', '--name', 'test'), {})
+            self.assertEqual(verify.run('aws', 's3api', 'delete-objects', '--bucket', 'test'), {})
 
     def test_empty_query_and_failed_stop_logging_are_not_success(self):
         with patch.object(verify.subprocess, 'run', return_value=MagicMock(returncode=0, stdout='')):

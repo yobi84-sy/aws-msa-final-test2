@@ -8,6 +8,7 @@ import argparse
 import json
 from pathlib import Path
 import subprocess
+import tempfile
 import time
 
 from verify_lab import CONFIG, aws, check, kube
@@ -95,8 +96,12 @@ def clear_bucket(bucket):
             # CloudTrail can deliver delayed objects; a later BucketNotEmpty is retried through this same stage.
             return
         for start in range(0, len(objects), 1000):
-            result = aws('s3api', 'delete-objects', '--bucket', bucket,
-                         '--delete', json.dumps({'Objects': objects[start:start + 1000], 'Quiet': True}))
+            # Large version lists exceed the Windows command-line length limit.
+            with tempfile.TemporaryDirectory(prefix='final-s3-delete-') as temporary:
+                request_path = Path(temporary) / 'delete.json'
+                request_path.write_text(json.dumps({'Objects': objects[start:start + 1000], 'Quiet': True}), encoding='utf-8')
+                result = aws('s3api', 'delete-objects', '--bucket', bucket,
+                             '--delete', 'file://' + str(request_path))
             check(not result.get('Errors'), 'S3 returned per-object deletion failures')
         time.sleep(5)
     raise TimeoutError('bucket is still receiving objects; inspect CloudTrail status, then retry storage stage')
