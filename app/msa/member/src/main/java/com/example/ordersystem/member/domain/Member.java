@@ -37,5 +37,6 @@ public class Member extends BaseTimeEntity {
     private Role role = Role.USER;
 
     // 관리자 Secret으로 비밀번호를 갱신한다.
+    public void changeEmail(String email) { this.email = email; }
     public void changePassword(String encodedPassword) { this.password = encodedPassword; }
 }

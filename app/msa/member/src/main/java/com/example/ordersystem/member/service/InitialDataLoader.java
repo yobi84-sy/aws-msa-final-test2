@@ -17,9 +17,9 @@ public class InitialDataLoader implements CommandLineRunner {
 
     public InitialDataLoader(MemberRepository repository, PasswordEncoder encoder,
             @Value("${ADMIN_BOOTSTRAP_PASSWORD:}") String password,
-            @Value("${ADMIN_BOOTSTRAP_EMAIL:admin@sy84.store}") String email) {
+            @Value("${ADMIN_BOOTSTRAP_EMAIL:}") String email) {
         this.repository = repository; this.encoder = encoder;
-        this.password = password; this.email = email;
+        this.password = password; this.email = email.trim();
     }
 
     @Override @Transactional
@@ -29,6 +29,13 @@ public class InitialDataLoader implements CommandLineRunner {
         if (password.length() < 12 || password.length() > 64) {
             throw new IllegalArgumentException("관리자 비밀번호는 12~64자로 설정하세요.");
         }
+        if (!email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")) {
+            throw new IllegalArgumentException("유효한 관리자 이메일을 설정하세요.");
+        }
+        Member emailOwner = repository.findByEmail(email).orElse(null);
+        if (emailOwner != null && !"admin".equals(emailOwner.getLoginId())) {
+            throw new IllegalStateException("관리자 이메일이 다른 회원에게 사용 중입니다. 다른 주소를 설정하세요.");
+        }
         Member existing = repository.findByLoginId("admin").orElse(null);
         if (existing != null) {
             if (existing.getRole() != Role.ADMIN) {
@@ -37,6 +44,7 @@ public class InitialDataLoader implements CommandLineRunner {
             if (!encoder.matches(password, existing.getPassword())) {
                 existing.changePassword(encoder.encode(password));
             }
+            existing.changeEmail(email);
             return;
         }
         repository.save(Member.builder().loginId("admin").name("관리자").nickname("관리자")

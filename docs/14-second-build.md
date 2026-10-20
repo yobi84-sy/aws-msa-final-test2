@@ -98,6 +98,12 @@ python scripts/ops/wait_database_secret.py
 & .\app\msa\Prepare-Admin.ps1
 ```
 
+`Prepare-Admin.ps1`은 관리자 이메일과 비밀번호를 입력받아 Kubernetes Secret에 저장합니다. 이메일은 Git에 저장하지 않습니다. SES 샌드박스에서는 인증된 수신 주소를 사용하세요. 이메일은 회원 간 중복을 허용하지 않으므로 일반 회원 가입에 사용한 주소와 구분해야 합니다. 별도 주소를 쓰면 SES 인증도 확인하세요.
+
+관리자 화면은 `https://server.sy84.store/admin.html`입니다. `admin.sy84.store` 호스트나 이메일 수신용 메일함을 생성하는 구성은 없습니다. 주문 확인 메일은 주문자 계정의 이메일로 발송되며 운영 장애 알림과는 별개입니다.
+
+업데이트된 Member 이미지가 배포된 상태에서는 이 스크립트를 다시 실행한 후 `kubectl rollout restart deployment/member-depl -n soldesk`와 `kubectl rollout status deployment/member-depl -n soldesk --timeout=300s`로 기존 관리자 이메일·비밀번호를 갱신할 수 있습니다. 중복 이메일이면 앱 시작을 중단하므로 먼저 다른 회원과 겹치지 않는 주소를 선택하세요. 기존 주문에 저장된 수신 주소는 변경되지 않습니다.
+
 5개 이미지·ESO Ready·관리자 초기 Secret을 확인한 후 `terraform-k8s/terraform.tfvars`의 두 enable 값을 true로 변경하여 새 plan/apply를 실행합니다. 관리자 bootstrap은 기존 안내의 명령을 그대로 사용하고, 비밀번호를 메신저/로그로 공유하지 않습니다.
 
 ```powershell
