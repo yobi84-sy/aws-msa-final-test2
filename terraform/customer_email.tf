@@ -68,7 +68,11 @@ resource "aws_iam_role_policy" "order_email" {
   role  = aws_iam_role.order_email[0].id
   policy = jsonencode({ Version = "2012-10-17", Statement = [
     { Effect = "Allow", Action = ["sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"], Resource = module.messaging.order_notifications_queue_arn },
-    { Effect = "Allow", Action = ["ses:SendEmail"], Resource = "arn:aws:ses:ap-northeast-2:${data.aws_caller_identity.current.account_id}:identity/${var.customer_email_sender}" },
+    # Keep the sender fixed while permitting SES identity authorization in this account/region.
+    { Effect    = "Allow", Action = ["ses:SendEmail"],
+      Resource  = "arn:aws:ses:ap-northeast-2:${data.aws_caller_identity.current.account_id}:identity/*",
+      Condition = { StringEquals = { "ses:FromAddress" = var.customer_email_sender } }
+    },
     { Effect = "Allow", Action = ["dynamodb:GetItem", "dynamodb:UpdateItem"], Resource = aws_dynamodb_table.email_dedup[0].arn },
     { Effect = "Allow", Action = ["logs:CreateLogStream", "logs:PutLogEvents"], Resource = "${aws_cloudwatch_log_group.order_email[0].arn}:*" }
   ] })
