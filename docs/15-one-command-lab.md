@@ -145,3 +145,5 @@ gh workflow run review-policy.yml --repo yobi84-sy/aws-msa-final-test2 --ref mai
 ```
 
 PS1·Python·Terraform·워크플로·사용법은 함께 버전 관리합니다. `.lab`, tfvars, state, plan, 비밀번호, 토큰은 Git에 올리지 않습니다.
+
+<!-- Temporary approval-policy smoke test; close without merging. -->
