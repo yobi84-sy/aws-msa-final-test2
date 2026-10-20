@@ -388,11 +388,13 @@ class PowerShellEntryTests(unittest.TestCase):
             # If a preview unexpectedly calls an external AWS CLI, fail immediately.
             trap = root / 'aws-called.txt'
             if os.name == 'nt':
-                (root / 'aws.cmd').write_text('@echo off\necho called>"' + str(trap) + '"\nexit /b 99\n')
+                # Keep CMD source ASCII; the Unicode path travels in the Windows
+                # environment, independent of the runner's ANSI code page.
+                (root / 'aws.cmd').write_text('@echo off\necho called>"%MOCK_PREVIEW_TRAP%"\nexit /b 99\n', encoding='ascii')
             else:
-                (root / 'aws').write_text('#!/bin/sh\ntouch "' + str(trap) + '"\nexit 99\n')
+                (root / 'aws').write_text('#!/bin/sh\ntouch "$MOCK_PREVIEW_TRAP"\nexit 99\n', encoding='ascii')
                 (root / 'aws').chmod(0o755)
-            env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ['PATH'], PYTHONUTF8='1')
+            env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ['PATH'], PYTHONUTF8='1', MOCK_PREVIEW_TRAP=str(trap))
             for shell in shells:
                 for script in ('Install-Lab.ps1', 'Remove-Lab.ps1'):
                     result = subprocess.run([shell, '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(root / script)],
