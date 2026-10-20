@@ -23,6 +23,15 @@ variable "customer_email_test_recipients" {
   type    = set(string)
   default = []
 }
+variable "customer_email_admin" {
+  description = "신규 주문 알림을 받을 관리자 이메일. 설치 설정에서 관리자 계정 이메일과 함께 지정합니다."
+  type        = string
+  default     = ""
+  validation {
+    condition     = var.customer_email_admin == "" || can(regex("^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$", var.customer_email_admin))
+    error_message = "관리자 주문 알림 이메일 형식을 확인하세요."
+  }
+}
 locals { email_configured = var.customer_email_sender != "" }
 data "archive_file" "order_email" {
   count       = local.email_configured ? 1 : 0
@@ -78,20 +87,22 @@ resource "aws_iam_role_policy" "order_email" {
   ] })
 }
 resource "aws_lambda_function" "order_email" {
-  count                          = local.email_configured ? 1 : 0
-  function_name                  = "${var.project_name}-order-email"
-  role                           = aws_iam_role.order_email[0].arn
-  runtime                        = "python3.13"
-  handler                        = "handler.handler"
-  filename                       = data.archive_file.order_email[0].output_path
-  source_code_hash               = data.archive_file.order_email[0].output_base64sha256
-  timeout                        = 20
+  count            = local.email_configured ? 1 : 0
+  function_name    = "${var.project_name}-order-email"
+  role             = aws_iam_role.order_email[0].arn
+  runtime          = "python3.13"
+  handler          = "handler.handler"
+  filename         = data.archive_file.order_email[0].output_path
+  source_code_hash = data.archive_file.order_email[0].output_base64sha256
+  # Buyer/admin sends are independent; allow both bounded SDK calls to finish.
+  timeout                        = 60
   memory_size                    = 128
   reserved_concurrent_executions = -1
   environment {
     variables = {
       SENDER_EMAIL = var.customer_email_sender
       DEDUP_TABLE  = aws_dynamodb_table.email_dedup[0].name
+      ADMIN_EMAIL  = var.customer_email_admin
     }
   }
   depends_on = [aws_iam_role_policy.order_email]

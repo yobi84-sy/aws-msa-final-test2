@@ -24,8 +24,10 @@ def command(*args):
     return result.stdout
 
 
-def identity():
+def identity(require_kubernetes=True):
     check(aws('sts', 'get-caller-identity')['Account'] == CONFIG['account'], 'wrong AWS account')
+    if not require_kubernetes:
+        return
     expected = f"arn:aws:eks:{CONFIG['region']}:{CONFIG['account']}:cluster/{CONFIG['cluster']}"
     check(command('kubectl', 'config', 'current-context').strip() == expected, 'wrong Kubernetes context')
 
@@ -42,13 +44,16 @@ def capture():
                             'alertmanager-monitoring-kube-prometheus-alertmanager-')):
             mounted.update(v['persistentVolumeClaim']['claimName'] for v in pod['spec'].get('volumes', [])
                            if 'persistentVolumeClaim' in v)
-    check(len(claims) == 3, 'expected three monitoring PVCs before teardown; investigate missing/extra claims')
+    # An interrupted first install may not have created all three claims yet.
+    # Every present claim still needs positive ownership + bound-volume proof.
+    check(len(claims) <= 3, 'unexpected extra monitoring PVCs; investigate before teardown')
     volumes = []
     for claim in claims:
         labels = claim['metadata'].get('labels', {})
         name = claim['metadata']['name']
         check(name in mounted or labels.get('release') == 'monitoring' or labels.get('app.kubernetes.io/instance') == 'monitoring',
               'unidentified monitoring PVC: ' + name)
+        check(bool(claim.get('spec', {}).get('volumeName')), 'PVC not bound yet; wait/investigate before capture: ' + name)
         pv = kube('pv/' + claim['spec']['volumeName'])
         check(pv['spec'].get('csi', {}).get('driver') == 'ebs.csi.aws.com', 'unexpected PV driver')
         check(pv['spec']['persistentVolumeReclaimPolicy'] == 'Delete', 'PV reclaim policy needs manual review')
@@ -142,7 +147,7 @@ def main():
     if args.stage not in ('capture', 'wait') and not (args.execute and args.discard_data):
         print('PREVIEW ONLY: ' + args.stage + '. Explicit --execute --discard-data required. See docs/14-second-build.md.')
         return
-    identity()
+    identity(require_kubernetes=args.stage not in ('wait', 'storage'))
     if args.stage == 'capture':
         data = capture()
         args.manifest.parent.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,36 @@
+name: Validate peer deployment approval
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review, edited, closed]
+  pull_request_review:
+    types: [submitted, dismissed, edited]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Re-evaluate this pull request (for example, after a teammate accepts an invitation)'
+        required: true
+        type: number
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+  checks: write
+concurrency:
+  group: peer-review-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: false
+jobs:
+  evaluate-review-policy:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      # Never check out or execute a pull request's code with a write-capable token.
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Publish the required release-approval check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+        run: python3 scripts/github/review_policy.py --pr "$PR_NUMBER"

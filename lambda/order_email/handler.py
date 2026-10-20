@@ -1,11 +1,12 @@
 """SNS/SQS 주문 이벤트 → SES. 비밀값/이메일/본문을 로그에 출력하지 않습니다."""
 import json
 import logging
+import hashlib
 import os
 import re
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -34,43 +35,68 @@ def parse(body):
         raise ValueError('Invalid product')
     return event
 
-def process(event, store, send, now=None):
+def delivery_targets(data, admin_email):
+    # Keep the customer key compatible with already-recorded SENT events.
+    yield data['eventId'], dict(data, notificationKind='customer')
+    if admin_email:
+        if not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', admin_email):
+            raise ValueError('Invalid administrator recipient')
+        suffix = hashlib.sha256(admin_email.encode()).hexdigest()
+        yield data['eventId'] + ':admin:' + suffix, dict(
+            data, notificationKind='admin', recipientEmail=admin_email)
+
+
+def failure_log(failure, stage, data=None, kind=None):
+    response = getattr(failure, 'response', {})
+    error = response.get('Error', {}) if isinstance(response, dict) else {}
+    code = error.get('Code', '') if isinstance(error, dict) else ''
+    if not isinstance(code, str) or not re.fullmatch(r'[A-Za-z0-9_.-]{1,80}', code):
+        code = 'Unavailable'
+    logger.error(json.dumps({
+        'event': 'order_email_failed', 'stage': stage, 'awsErrorCode': code,
+        'errorType': type(failure).__name__, 'notificationKind': kind,
+        'orderId': data['orderId'] if data else None,
+        'eventId': data['eventId'] if data else None,
+    }))
+
+
+def process(event, store, send, now=None, admin_email=None):
     now = int(time.time()) if now is None else now
     failures = []
     for record in event.get('Records', []):
-        token = None
         data = None
-        stage = 'parse'
         try:
             data = parse(record['body'])
-            token = str(uuid.uuid4())
-            stage = 'claim'
-            if not store.claim(data['eventId'], token, now):
-                continue  # SENT인 이벤트만 성공 처리한다. 처리 중인 이벤트는 재시도한다.
-            stage = 'send'
-            send(data)
-            stage = 'record_sent'
-            store.sent(data['eventId'], token)
+            targets = list(delivery_targets(data, admin_email))
         except Exception as failure:
-            response = getattr(failure, 'response', {})
-            error = response.get('Error', {}) if isinstance(response, dict) else {}
-            code = error.get('Code', '') if isinstance(error, dict) else ''
-            if not isinstance(code, str) or not re.fullmatch(r'[A-Za-z0-9_.-]{1,80}', code):
-                code = 'Unavailable'
-            # Only allowlisted diagnostics: never exception text, body, email or lease token.
-            logger.error(json.dumps({
-                'event': 'order_email_failed', 'stage': stage, 'awsErrorCode': code,
-                'errorType': type(failure).__name__,
-                'orderId': data['orderId'] if data else None,
-                'eventId': data['eventId'] if data else None,
-            }))
-            # SES 수락 후 DB 완료 기록이 실패한 경우에도 중복 메일 가능성이 있다.
-            # 이를 exactly-once로 표현하지 않는다.
-            if data is not None and token is not None:
+            failure_log(failure, 'parse', data)
+            failures.append({'itemIdentifier': record['messageId']})
+            continue
+        failed = False
+        for key, delivery in targets:
+            token = str(uuid.uuid4())
+            claimed = False
+            stage = 'claim'
+            try:
+                if not store.claim(key, token, now):
+                    continue
+                claimed = True
+                stage = 'send'
+                send(delivery)
+                stage = 'record_sent'
+                store.sent(key, token)
+            except Exception as failure:
+                failure_log(failure, stage, data, delivery['notificationKind'])
+                # A failed admin delivery must not resend a SENT customer delivery.
+                # SES acceptance followed by a failed SENT write can still duplicate mail.
+                failed = True
+                if not claimed:
+                    continue
                 try:
-                    store.release(data['eventId'], token)
-                except Exception:
-                    pass
+                    store.release(key, token)
+                except Exception as release_error:
+                    failure_log(release_error, 'release', data, delivery['notificationKind'])
+        if failed:
             failures.append({'itemIdentifier': record['messageId']})
     return {'batchItemFailures': failures}
 
@@ -105,11 +131,29 @@ class DynamoStore:
 def handler(event, context):
     import boto3
     from botocore.config import Config
-    config = Config(connect_timeout=2, read_timeout=5, retries={'max_attempts':1})
+    config = Config(connect_timeout=2, read_timeout=5, retries={'total_max_attempts':1})
     store = DynamoStore(boto3.resource('dynamodb', config=config).Table(os.environ['DEDUP_TABLE']))
     ses = boto3.client('sesv2', config=config)
     def send(data):
+        kind = data['notificationKind']
+        title, body = mail_content(data, kind)
         ses.send_email(FromEmailAddress=os.environ['SENDER_EMAIL'], Destination={'ToAddresses':[data['recipientEmail']]},
-            Content={'Simple':{'Subject':{'Data':f"주문 완료 안내 #{data['orderId']}",'Charset':'UTF-8'},
-            'Body':{'Text':{'Data':f"주문번호: {data['orderId']}\n상품: {data['productName']}\n수량: {data['quantity']}\n금액: {data['total']}원",'Charset':'UTF-8'}}}})
-    return process(event, store, send)
+            Content={'Simple':{'Subject':{'Data':title,'Charset':'UTF-8'},
+            'Body':{'Text':{'Data':body,'Charset':'UTF-8'}}}})
+    return process(event, store, send, admin_email=os.environ.get('ADMIN_EMAIL', '').strip())
+
+
+def mail_content(data, kind):
+    title = ('신규 주문 알림' if kind == 'admin' else '주문 완료 안내') + f" #{data['orderId']}"
+    body = f"주문번호: {data['orderId']}\n상품: {data['productName']}\n수량: {data['quantity']}\n금액: {data['total']}원"
+    if kind == 'admin':
+        # No buyer email/name/address in the administrator notification.
+        occurred = '기록 없음'
+        try:
+            instant = datetime.fromisoformat(data.get('occurredAt', '').replace('Z', '+00:00'))
+            if instant.tzinfo is not None:
+                occurred = instant.astimezone(timezone(timedelta(hours=9))).strftime('%Y-%m-%d %H:%M:%S KST')
+        except (ValueError, TypeError, AttributeError):
+            pass
+        body += '\n주문 시각: ' + occurred
+    return title, body

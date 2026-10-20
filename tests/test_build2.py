@@ -105,8 +105,73 @@ class CredentialPropagationTests(unittest.TestCase):
 
         api.stamp = conflict
         with self.assertRaises(sync.ApiError):
-            sync.reconcile(api)
+            sync.reconcile(api, sleep=lambda _: None)
         self.assertEqual(api.calls, [])
+
+    def test_later_deployment_changed_while_first_rolls_out_is_read_fresh(self):
+        api = FakeApi(old=True)
+        stamp = api.stamp
+        def changing(name, deployment, digest):
+            self.assertEqual(deployment['metadata']['resourceVersion'], api.apps[name]['metadata']['resourceVersion'])
+            stamp(name, deployment, digest)
+            if name == 'member-depl':
+                api.apps['product-depl']['metadata']['resourceVersion'] = '8'
+                api.apps['product-depl']['spec']['template']['metadata']['annotations']['unrelated'] = 'preserve'
+        api.stamp = changing
+        self.assertEqual(sync.reconcile(api), 'ready')
+        self.assertEqual(api.calls, list(sync.DEPLOYMENTS))
+        self.assertEqual(api.apps['product-depl']['spec']['template']['metadata']['annotations']['unrelated'], 'preserve')
+
+    def test_409_retry_reads_new_resource_version_and_is_bounded(self):
+        api = FakeApi(old=True)
+        stamp = api.stamp
+        attempts = []
+        def once(name, deployment, digest):
+            attempts.append(deployment['metadata']['resourceVersion'])
+            if len(attempts) == 1:
+                api.apps[name]['metadata']['resourceVersion'] = '8'
+                raise sync.ApiError(409)
+            self.assertEqual(deployment['metadata']['resourceVersion'], '8')
+            stamp(name, deployment, digest)
+        api.stamp = once
+        sync.stamp_current(api, 'member-depl', sync.fingerprint(api.secret()), sleep=lambda _: None)
+        self.assertEqual(attempts, ['7', '8'])
+        calls = []
+        def always(*args):
+            calls.append(1)
+            raise sync.ApiError(409)
+        api.stamp = always
+        with self.assertRaises(sync.ApiError):
+            sync.stamp_current(api, 'product-depl', sync.fingerprint(api.secret()), sleep=lambda _: None)
+        self.assertEqual(len(calls), 3)
+
+    def test_permission_errors_are_not_retried_and_logs_are_safe(self):
+        api = FakeApi(old=True)
+        calls = []
+        def denied(*args):
+            calls.append(1)
+            raise sync.ApiError(403, 'PATCH', 'product-depl')
+        api.stamp = denied
+        with self.assertRaises(sync.ApiError) as caught:
+            sync.stamp_current(api, 'product-depl', sync.fingerprint(api.secret()), sleep=lambda _: None)
+        self.assertEqual(len(calls), 1)
+        message = sync.failure_message(caught.exception)
+        self.assertIn('HTTP 403', message)
+        self.assertIn('product-depl', message)
+        self.assertNotIn(api.value, message)
+        self.assertNotIn('private exception data', sync.failure_message(RuntimeError('private exception data')))
+
+    def test_new_secret_during_conflict_retry_stops_before_patch(self):
+        api = FakeApi(old=True)
+        calls = []
+        def rotating(*args):
+            calls.append(1)
+            api.value = 'changed-during-retry'
+            raise sync.ApiError(409)
+        api.stamp = rotating
+        with self.assertRaises(RuntimeError):
+            sync.stamp_current(api, 'member-depl', sync.fingerprint(api.secret()), sleep=lambda _: None)
+        self.assertEqual(len(calls), 1)
 
     def test_missing_password_fails_closed(self):
         with self.assertRaises(ValueError):
@@ -211,6 +276,8 @@ class OperationalGuardsTests(unittest.TestCase):
 
         def run(*args):
             calls.append(args)
+            if args[:3] == ('gh', 'pr', 'create'):
+                return 'https://github.com/owner/repo/pull/3'
             return sha + '\trefs/heads/main' if args[:2] == ('git', 'ls-remote') else ''
 
         environment = {'GITHUB_SHA': sha, 'GITHUB_REPOSITORY': 'owner/repo', 'GITHUB_RUN_ID': '1',

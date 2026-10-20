@@ -1,6 +1,6 @@
-> **2차 빌드 준비:** t3.medium 3~6대, 설치 준비 확인, DB TLS·비밀번호 전달, 단계별 삭제·검증을 보완했습니다. AWS 재구축 전이며, [현재 수동 실행 가이드](docs/14-second-build.md)를 먼저 확인하세요.
+> **실행 시작점:** GUI 없이 [설치·검증·삭제 PS1 가이드](docs/15-one-command-lab.md)를 사용합니다. 설치 단계·실패 후 재개·관리자 주문 알림·DB 충돌 대응을 보완했습니다. 이번 자동화 변경본의 전체 AWS 재구축은 다음 실습에서 검증합니다.
 
-> **test2 개선 코드:** 주문 복구·Outbox·고객 이메일·Secrets Manager·승인 배포를 추가했습니다. 아직 AWS에 적용한 결과는 아닙니다. [변경·적용·검증 안내](docs/11-test2-delivery.md)를 먼저 읽어주세요.
+> **10월 20일 수동 실습:** 웹/DB 연결, Pod 교체 후 데이터 유지, 구매자 메일, 승인 후 재배포, HPA 확장·축소, CA 증설·제거, 실제 DB 비밀번호 회전 후 자동 갱신을 확인했습니다. 관리자 신규 주문 알림과 이번 PS1 자동화는 별도의 코드/모의 검증 범위입니다.
 
 # AWS · EKS 서비스 운영 프로젝트
 
@@ -77,10 +77,18 @@ Helm·Kustomize는 [배포 자동화](docs/02-deployment.md), EBS는 [프로젝�
 
 ## 실행 안내
 
-[PowerShell 실행 순서](docs/06-monday-runbook.md) · [state 설명](docs/07-terraform-state.md) · [RDS 복원 실습](docs/08-rds-restore-lab.md)
+```powershell
+.\Install-Lab.ps1 -Execute
+.\Verify-Lab.ps1
+.\Remove-Lab.ps1 -Execute -DiscardData
+```
 
-state 버킷을 먼저 준비하고 **AWS 인프라 → EKS 내부 구성 → 앱 배포 → DNS 연결** 순서로 진행합니다. 삭제는 EKS 내부 구성부터 진행하며, state 버킷은 따로 보관합니다.
+세 명령은 각각 설치·조회 검증·실제 전체 삭제입니다. 한꺼번에 붙여 넣어 설치 직후 삭제하지 마세요. 입력·승인·재개·최초 배포 커밋 고정과 이후 main 전환은 [실행 가이드](docs/15-one-command-lab.md)를 확인하세요.
 
-GitHub Actions의 이미지 게시 대상은 main입니다. 기본 Argo CD 대상도 main이며, 별도 실습에서는 `github_revision`으로 검증 브랜치를 지정할 수 있습니다. 실제 적용 결과와 확인하지 않은 범위는 [검증 기록](docs/10-live-validation.md)에 구분했습니다.
+[수동 단계 참고](docs/14-second-build.md) · [state 설명](docs/07-terraform-state.md) · [RDS 복원 실습](docs/08-rds-restore-lab.md)
+
+state 버킷을 먼저 준비하고 **AWS 인프라 → EKS 내부 구성 → 앱 배포 → DNS 연결** 순서로 진행합니다. 새 삭제 PS1은 앱·ALB·EBS를 먼저 정리하고, 잔여 확인 후 state 버킷도 마지막에 삭제합니다. `-KeepStateBucket`으로 보존할 수 있습니다.
+
+GitHub Actions의 이미지 게시 대상은 main입니다. 최초 자동 설치는 테스트한 배포 커밋에 고정하고, 초기 배포 PR 승인·병합 후 `Install-Lab.ps1 -Execute -PromoteMain`으로 보호된 main 추적을 켭니다. 소스 공개와 실제 배포 승인, CI 실행 허가는 구분합니다.
 
 **브랜치:** main은 검증한 개선 버전, test는 개선 전 main 보관용입니다. 새 수정은 최신 main에서 작업 브랜치를 만들어 진행합니다. 이전 test 코드를 현재 S3 state 환경에 그대로 적용하지 않습니다.

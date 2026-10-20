@@ -1,4 +1,5 @@
 name: Test and publish changed services
+run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.request_id != '' && format('Lab build {0}', inputs.request_id) || github.event.pull_request.title || github.event.head_commit.message || github.workflow }}
 on:
   workflow_dispatch:
     inputs:
@@ -10,6 +11,10 @@ on:
         description: '실제 ECR 게시·배포 PR 생성 (최초 infra/ECR 준비 후 main에서만)'
         type: boolean
         default: false
+      request_id:
+        description: '설치 스크립트가 같은 빌드를 중복 실행하지 않도록 사용하는 식별자'
+        type: string
+        default: ''
   push:
     branches: [main, test, test2, "build2/**"]
   pull_request:
@@ -88,6 +93,8 @@ jobs:
           terraform_wrapper: false
       - name: Execute both readiness provisioners on Windows (no AWS)
         run: python -m unittest discover -s tests -p test_local_exec.py -v
+      - name: Validate PowerShell entry points and orchestration with fake APIs (no AWS)
+        run: python -m unittest discover -s tests -p test_lab_automation.py -v
   test:
     needs: changes
     if: needs.changes.outputs.services != '[]'

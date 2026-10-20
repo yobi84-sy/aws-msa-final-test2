@@ -25,6 +25,49 @@ def event():
     return {'schemaVersion':1,'eventType':'ORDER_CREATED','eventId':'12345678-1234-4234-8234-123456789abc','orderId':1,'memberId':7,'recipientEmail':'customer@example.com','productName':'shoe','quantity':2,'total':3000}
 def batch(data):return {'Records':[{'messageId':'message-1','body':json.dumps(data)}]}
 class DeliveryTests(unittest.TestCase):
+    def test_buyer_and_admin_are_delivered_and_deduplicated_independently(self):
+        store=Store();sent=[]
+        for _ in range(2):
+            self.assertEqual(email.process(batch(event()),store,sent.append,admin_email='operator@example.com')['batchItemFailures'],[])
+        self.assertEqual([d['notificationKind'] for d in sent], ['customer','admin'])
+        self.assertEqual([d['recipientEmail'] for d in sent], ['customer@example.com','operator@example.com'])
+        self.assertEqual(len(store.items),2)
+
+    def test_admin_failure_retry_never_resends_successful_customer_delivery(self):
+        store=Store();sent=[]
+        def fail_admin(data):
+            if data['notificationKind']=='admin': raise RuntimeError('private address')
+            sent.append(data)
+        self.assertTrue(email.process(batch(event()),store,fail_admin,admin_email='operator@example.com')['batchItemFailures'])
+        self.assertEqual(email.process(batch(event()),store,sent.append,admin_email='operator@example.com')['batchItemFailures'],[])
+        self.assertEqual([d['notificationKind'] for d in sent], ['customer','admin'])
+
+    def test_customer_failure_does_not_prevent_admin_and_retry_skips_admin(self):
+        store=Store();sent=[]
+        def fail_customer(data):
+            if data['notificationKind']=='customer': raise RuntimeError('private address')
+            sent.append(data)
+        self.assertTrue(email.process(batch(event()),store,fail_customer,admin_email='operator@example.com')['batchItemFailures'])
+        self.assertEqual(email.process(batch(event()),store,sent.append,admin_email='operator@example.com')['batchItemFailures'],[])
+        self.assertEqual([d['notificationKind'] for d in sent], ['admin','customer'])
+
+    def test_existing_customer_sent_record_is_preserved_when_admin_is_enabled(self):
+        store=Store();sent=[]
+        store.items[event()['eventId']]='SENT'
+        self.assertEqual(email.process(batch(event()),store,sent.append,admin_email='operator@example.com')['batchItemFailures'],[])
+        self.assertEqual([d['notificationKind'] for d in sent], ['admin'])
+
+    def test_admin_content_has_time_and_no_buyer_personal_information(self):
+        data=dict(event(),occurredAt='2026-10-20T07:00:00Z')
+        title,body=email.mail_content(data,'admin')
+        self.assertIn('신규 주문 알림',title)
+        self.assertIn('2026-10-20 16:00:00 KST',body)
+        self.assertNotIn(data['recipientEmail'],body)
+
+    def test_invalid_admin_configuration_fails_without_partial_send(self):
+        sent=[]
+        self.assertTrue(email.process(batch(event()),Store(),sent.append,admin_email='not-an-email')['batchItemFailures'])
+        self.assertEqual(sent,[])
     def test_duplicate_event_is_not_sent_twice(self):
         store=Store();sent=[]
         self.assertEqual(email.process(batch(event()),store,sent.append)['batchItemFailures'],[])
