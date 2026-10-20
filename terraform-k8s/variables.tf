@@ -37,9 +37,16 @@ variable "github_username" {
 
 # 실행할 때만 전달하고 Terraform 상태 파일에는 저장하지 않음
 variable "github_token" {
+  default   = ""
   type      = string
   sensitive = true
   ephemeral = true
+}
+
+# 현재 저장소는 public입니다. private으로 전환할 때만 읽기 토큰 Secret을 만듭니다.
+variable "github_repository_public" {
+  type    = bool
+  default = true
 }
 
 # RDS 생성 시 사용한 비밀번호를 앱에도 동일하게 전달
@@ -105,5 +112,15 @@ variable "internal_service_token" {
   validation {
     condition     = length(var.internal_service_token) >= 32
     error_message = "내부 서비스 토큰은 32자 이상이어야 합니다."
+  }
+}
+
+# GitHub 읽기 토큰 교체 시 함께 올립니다.
+variable "github_token_revision" {
+  type    = number
+  default = 1
+  validation {
+    condition     = var.github_token_revision >= 1 && floor(var.github_token_revision) == var.github_token_revision
+    error_message = "github_token_revision은 양의 정수여야 합니다."
   }
 }

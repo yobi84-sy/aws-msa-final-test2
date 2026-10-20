@@ -13,6 +13,13 @@ resources:
   - k8s/k8s-services/ingress.yml
   # 초기 자동 확장 실습은 회원 서비스 하나로 진행
   - k8s/k8s-hpa/member-hpa.yml
+  - ops/db-credential-sync.yml
+
+configMapGenerator:
+  - name: db-credential-sync-script
+    namespace: soldesk
+    files:
+      - db_credential_sync.py=ops/db_credential_sync.py
 
 # CI에서 Git 커밋별 이미지 태그로 변경할 위치
 images:

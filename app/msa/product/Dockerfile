@@ -13,6 +13,11 @@ RUN ./gradlew bootJar
 
 # 두번째 스테이지
 FROM eclipse-temurin:17-jre-alpine
+# Public Amazon RDS CA roots; Connector/J VERIFY_IDENTITY also checks the DB hostname.
+COPY certs/rds-ca-bundle.crt /opt/rds-ca-bundle.crt
+RUN awk '/BEGIN CERTIFICATE/{n++} n {print > ("/tmp/rds-ca-" n ".crt")}' /opt/rds-ca-bundle.crt \
+    && for cert in /tmp/rds-ca-*.crt; do keytool -importcert -noprompt -cacerts -storepass changeit -alias "$(basename "$cert" .crt)" -file "$cert" || exit 1; done \
+    && rm /tmp/rds-ca-*.crt
 WORKDIR /app
 COPY --from=stage1 /app/build/libs/*.jar app.jar
 

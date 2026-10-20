@@ -70,6 +70,11 @@ def propose():
     body=Path('/tmp/release-pr.md')
     body.write_text(f'## 배포 변경\n소스: `{sha}`\n\n테스트한 이미지 산출물을 그대로 ECR에 게시하고 digest로 고정했습니다.\n\n- [ ] 변경 서비스·이미지·DB 호환성 검토\n- [ ] 다른 팀원 승인\n- [ ] 병합 후 deploy-check 결과 확인\n\n복구: scripts/ops/rollback_release.py로 이전 배포 PR을 제안합니다. DB/인프라는 자동으로 되돌리지 않습니다.\n',encoding='utf-8')
     run('gh','pr','create','--repo',repo,'--base','main','--head',branch,'--title','배포 승인 요청: '+sha[:12],'--body-file',str(body))
+    # GITHUB_TOKEN PR events do not recursively trigger Actions. Explicit dispatch
+    # is supported and places required-ci on the release head without AWS writes.
+    if not os.environ.get('RELEASE_APP_ID'):
+        run('gh','workflow','run','build-push.yml','--repo',repo,'--ref',branch,
+            '-f','full_build=false','-f','publish_images=false')
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('command',choices=['publish','propose','validate']);parser.add_argument('--base',default='');args=parser.parse_args()
     {'publish':publish,'propose':propose,'validate':lambda:validate(args.base)}[args.command]()

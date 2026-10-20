@@ -15,7 +15,7 @@ override_data {
   values = {
     outputs = {
       autoscaler_node_groups = {
-        az-a = { asg_name = "mock-final-az-a", min_size = 2, max_size = 2 }
+        az-a = { asg_name = "mock-final-az-a", min_size = 1, max_size = 3 }
         az-c = { asg_name = "mock-final-az-c", min_size = 2, max_size = 3 }
       }
       manage_db_password                = true
@@ -35,7 +35,7 @@ override_data {
 
 variables {
   internal_service_token    = "mock-internal-service-token-only-32-chars"
-  db_password               = "mock-password-only"
+  db_password               = "mock-password-only" # gitleaks:allow -- mock provider fixture, not a credential
   github_token              = "mock-token-only"
   jwt_secret                = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
   jwt_refresh_secret        = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
@@ -55,8 +55,8 @@ run "zonal_scheduling" {
     error_message = "CA must manage exactly the two zonal groups, excluding the legacy group."
   }
   assert {
-    condition     = sum([for group in yamldecode(helm_release.cluster_autoscaler.values[0]).autoscalingGroups : group.maxSize]) == 5
-    error_message = "New pool maximum must remain five nodes total."
+    condition     = sum([for group in yamldecode(helm_release.cluster_autoscaler.values[0]).autoscalingGroups : group.maxSize]) == 6
+    error_message = "New pool maximum must be six nodes total."
   }
   assert {
     condition     = yamldecode(helm_release.monitoring.values[1]).grafana.nodeSelector["final-node-pool"] == "az-c" && yamldecode(helm_release.monitoring.values[1]).prometheus.prometheusSpec.nodeSelector["final-node-pool"] == "az-c"
@@ -78,5 +78,20 @@ run "zonal_scheduling" {
     condition     = length(kubernetes_secret_v1.database) == 0 && length(helm_release.external_secrets) == 1 && length(helm_release.database_secret) == 1
     error_message = "Managed password must have one ESO owner and no Terraform-owned password Secret."
   }
+  assert {
+    condition     = length(kubernetes_secret_v1.argocd_repository) == 0
+    error_message = "Public source must not require a GitHub token Secret."
+  }
 
+}
+
+run "private_repository_opt_in" {
+  command = plan
+  variables {
+    github_repository_public = false
+  }
+  assert {
+    condition     = length(kubernetes_secret_v1.argocd_repository) == 1
+    error_message = "Private repository opt-in must create its authentication Secret."
+  }
 }

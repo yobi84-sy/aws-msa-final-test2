@@ -19,3 +19,5 @@ application.generated.yml
 # 로컬 Python 검사 도구의 캐시
 __pycache__/
 *.py[cod]
+# 로컬 검증 결과와 삭제 전 정확한 리소스 목록 (저장소에 공유하지 않음)
+.lab/

@@ -5,6 +5,7 @@ locals {
 
 # 배치하지 못한 파드가 생기면 노드 확장을 판단하는 CA 설치
 resource "helm_release" "cluster_autoscaler" {
+  depends_on = [terraform_data.load_balancer_webhook_ready]
   name       = "cluster-autoscaler"
   repository = "https://kubernetes.github.io/autoscaler"
   chart      = "cluster-autoscaler"

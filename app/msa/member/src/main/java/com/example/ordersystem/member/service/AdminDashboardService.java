@@ -49,7 +49,10 @@ public class AdminDashboardService {
                     "members", db.queryForObject("select count(*) from member", Long.class),
                     "products", db.queryForObject("select count(*) from product", Long.class),
                     "orders", db.queryForObject("select count(*) from ordering", Long.class),
-                    "stock", db.queryForObject("select coalesce(sum(stock_quantity), 0) from product", Long.class));
+                    "stock", db.queryForObject("select coalesce(sum(stock_quantity), 0) from product", Long.class),
+                    "tlsEncrypted", !Objects.toString(db.queryForObject(
+                            "SELECT VARIABLE_VALUE FROM performance_schema.session_status WHERE VARIABLE_NAME = 'Ssl_cipher'",
+                            String.class), "").isBlank());
         } catch (Exception e) { return Map.of("status", "unavailable"); }
     }
 

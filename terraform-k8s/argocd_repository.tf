@@ -1,5 +1,6 @@
 # Argo CD가 사용할 Private GitHub 저장소 인증 정보
 resource "kubernetes_secret_v1" "argocd_repository" {
+  count = var.github_repository_public ? 0 : 1
   metadata {
     name = "final-github-repository"
 
@@ -23,7 +24,7 @@ resource "kubernetes_secret_v1" "argocd_repository" {
   }
 
   # 토큰을 교체할 때 이 번호도 2, 3 순서로 증가
-  data_wo_revision = 1
+  data_wo_revision = var.github_token_revision
 
   # Argo CD 설치가 끝난 뒤 저장소 인증 등록
   depends_on = [

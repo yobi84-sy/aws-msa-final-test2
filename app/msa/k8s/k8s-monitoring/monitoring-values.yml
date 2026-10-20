@@ -194,6 +194,16 @@ additionalPrometheusRulesMap:
     groups:
       - name: final-project-operations
         rules:
+          # 직전 실행의 실패만 평가: 예전 실패 Job 때문에 복구 후에도 경보가 남지 않음
+          - alert: FinalDbCredentialSyncFailed
+            expr: (kube_job_status_failed{namespace="soldesk",job_name=~"db-credential-sync-.*"} > 0) and on(namespace,job_name) (kube_job_created{namespace="soldesk",job_name=~"db-credential-sync-.*"} == on(namespace) group_left() max by(namespace) (kube_job_created{namespace="soldesk",job_name=~"db-credential-sync-.*"}))
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: 'DB 인증 정보 전달 작업 실패'
+              description: '최근 db-credential-sync Job이 실패했습니다. ESO Ready, 앱 DB 연결, 롤아웃 상태를 확인하세요. 비밀번호를 로그에 출력하지 마세요.'
+
           # 단순 파드 삭제 후 교체는 restart 카운터 증가와 다름
           - alert: FinalPodRestarted
             expr: sum by (namespace, pod, container) (increase(kube_pod_container_status_restarts_total{namespace="soldesk"}[5m])) > 0
