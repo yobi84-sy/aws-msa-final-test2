@@ -31,13 +31,20 @@ resource "helm_release" "argocd_application" {
           }
 
           # HPA가 늘리거나 줄인 파드 수를 Argo CD가 되돌리지 않도록 설정
-          ignoreDifferences = [{
+          ignoreDifferences = concat([{
             group        = "apps"
             kind         = "Deployment"
             name         = "member-depl"
             namespace    = kubernetes_namespace_v1.soldesk.metadata[0].name
-            jsonPointers = ["/spec/replicas"]
-          }]
+            jsonPointers = ["/spec/replicas", "/spec/template/metadata/annotations/final.project~1db-secret-sha256"]
+            }], [for name in ["product-depl", "ordering-depl"] : {
+            group     = "apps"
+            kind      = "Deployment"
+            name      = name
+            namespace = kubernetes_namespace_v1.soldesk.metadata[0].name
+            # 이 annotation만 DB 갱신 worker가 관리합니다. image 등 다른 설정은 Git 관리.
+            jsonPointers = ["/spec/template/metadata/annotations/final.project~1db-secret-sha256"]
+          }])
 
           syncPolicy = {
             automated = {
@@ -69,6 +76,9 @@ resource "helm_release" "argocd_application" {
     kubernetes_secret_v1.argocd_repository,
     kubernetes_secret_v1.app,
     kubernetes_secret_v1.database,
-    helm_release.database_secret
+    helm_release.database_secret,
+    terraform_data.database_secret_ready,
+    helm_release.argocd,
+    terraform_data.load_balancer_webhook_ready
   ]
 }

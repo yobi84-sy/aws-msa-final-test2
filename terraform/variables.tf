@@ -71,7 +71,7 @@ variable "eks_admin_principal_arn" {
 # 노드에서 사용할 EC2 인스턴스 종류
 variable "eks_node_instance_types" {
   type    = list(string)
-  default = ["t3.small"]
+  default = ["t3.medium"]
 }
 
 # 처음 생성할 노드 수
@@ -89,7 +89,7 @@ variable "eks_node_min_size" {
 # 확장할 수 있는 최대 노드 수
 variable "eks_node_max_size" {
   type    = number
-  default = 5
+  default = 6
 }
 
 # 전환 완료 후 false: 새로 구축할 때도 AZ별 그룹만 생성

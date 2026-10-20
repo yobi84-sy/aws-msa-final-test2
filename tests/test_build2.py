@@ -1,0 +1,187 @@
+"""Offline regression tests: no Kubernetes or AWS endpoints are contacted."""
+import copy
+import importlib.util
+import io
+from pathlib import Path
+import contextlib
+import os
+import sys
+import unittest
+from unittest.mock import patch, MagicMock
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def load(name, path):
+    spec = importlib.util.spec_from_file_location(name, ROOT / path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+sync = load('credential_sync', 'app/msa/ops/db_credential_sync.py')
+verify = load('verify_lab', 'scripts/ops/verify_lab.py')
+webhook = load('webhook', 'scripts/ops/wait_webhook.py')
+sys.path.insert(0, str(ROOT / 'scripts/ops'))
+destroy = load('destroy_lab', 'scripts/ops/destroy_lab.py')
+release = load('release_build2', 'scripts/ci/release_manifest.py')
+
+
+class FakeApi:
+    def __init__(self, old=False, failed=False, status=None):
+        self.value = 'never-log-this-secret'
+        self.calls = []
+        self.failed = failed
+        self.status = status
+        digest = 'previous' if old else sync.fingerprint(self.secret())
+        self.apps = {name: {
+            'metadata': {'resourceVersion': '7', 'generation': 1},
+            'spec': {'replicas': 1, 'template': {'metadata': {'annotations': {sync.ANNOTATION: digest}}}},
+            'status': {'observedGeneration': 1, 'updatedReplicas': 1, 'availableReplicas': 1, 'replicas': 1}
+        } for name in sync.DEPLOYMENTS}
+
+    def secret(self):
+        return {'data': {'DB_PW': self.value}, 'metadata': {'resourceVersion': '999'}}
+
+    def deployment(self, name):
+        if self.status:
+            raise sync.ApiError(self.status)
+        return copy.deepcopy(self.apps[name])
+
+    def stamp(self, name, deployment, digest):
+        self.calls.append(name)
+        self.apps[name]['spec']['template']['metadata']['annotations'][sync.ANNOTATION] = digest
+        if self.failed:
+            self.apps[name]['status']['availableReplicas'] = 0
+
+
+class CredentialPropagationTests(unittest.TestCase):
+    def test_unchanged_value_does_not_restart_even_if_secret_metadata_changes(self):
+        api = FakeApi()
+        self.assertEqual(sync.reconcile(api), 'ready')
+        self.assertEqual(api.calls, [])
+
+    def test_changed_password_rolls_all_three_in_order_and_no_secret_is_logged(self):
+        api = FakeApi(old=True)
+        log = io.StringIO()
+        with contextlib.redirect_stdout(log):
+            sync.reconcile(api)
+        self.assertEqual(api.calls, list(sync.DEPLOYMENTS))
+        self.assertNotIn(api.value, log.getvalue())
+        self.assertNotIn(sync.fingerprint(api.secret()), log.getvalue())
+        # A later ESO refresh with unchanged data is a no-op.
+        sync.reconcile(api)
+        self.assertEqual(len(api.calls), 3)
+
+    def test_failed_first_rollout_stops_before_other_services(self):
+        api = FakeApi(old=True, failed=True)
+        with self.assertRaises(TimeoutError):
+            sync.reconcile(api, timeout=0)
+        self.assertEqual(api.calls, ['member-depl'])
+
+    def test_rotation_again_during_rollout_stops_sequence(self):
+        api = FakeApi(old=True)
+        stamp = api.stamp
+
+        def rotating(*args):
+            stamp(*args)
+            api.value = 'a-second-password'
+
+        api.stamp = rotating
+        with self.assertRaises(RuntimeError):
+            sync.reconcile(api)
+        self.assertEqual(api.calls, ['member-depl'])
+
+    def test_missing_initial_deployments_wait_but_forbidden_fails(self):
+        self.assertEqual(sync.reconcile(FakeApi(status=404)), 'waiting')
+        with self.assertRaises(sync.ApiError):
+            sync.reconcile(FakeApi(status=403))
+
+    def test_patch_conflict_is_not_overwritten_or_skipped(self):
+        api = FakeApi(old=True)
+
+        def conflict(*args):
+            raise sync.ApiError(409)
+
+        api.stamp = conflict
+        with self.assertRaises(sync.ApiError):
+            sync.reconcile(api)
+        self.assertEqual(api.calls, [])
+
+    def test_missing_password_fails_closed(self):
+        with self.assertRaises(ValueError):
+            sync.fingerprint({'data': {}})
+
+
+class ReadinessTests(unittest.TestCase):
+    def test_webhook_needs_a_ready_endpoint(self):
+        self.assertFalse(webhook.endpoints_ready({'items': []}))
+        self.assertFalse(webhook.endpoints_ready({'items': [{'endpoints': [{'conditions': {'ready': False}}]}]}))
+        self.assertTrue(webhook.endpoints_ready({'items': [{'endpoints': [{'conditions': {'ready': True}}]}]}))
+
+    def test_pending_pvc_never_passes(self):
+        with self.assertRaises(ValueError):
+            verify.verify_volumes([{'status': {'phase': 'Pending'}}])
+        with self.assertRaises(ValueError):
+            verify.verify_volumes([])
+        verify.verify_volumes([{'status': {'phase': 'Bound'}}])
+
+    def test_wrong_node_az_distribution_fails(self):
+        def node(pool):
+            return {'metadata': {'labels': {'node.kubernetes.io/instance-type': 't3.medium', 'final-node-pool': pool}},
+                    'status': {'conditions': [{'type': 'Ready', 'status': 'True'}]}}
+        verify.verify_nodes({'items': [node('az-a'), node('az-c'), node('az-c')]})
+        with self.assertRaises(ValueError):
+            verify.verify_nodes({'items': [node('az-a'), node('az-a'), node('az-c')]})
+
+
+class OperationalGuardsTests(unittest.TestCase):
+    def test_cleanup_preview_does_not_even_query_aws(self):
+        with patch.object(sys, 'argv', ['destroy_lab.py', 'storage']), patch.object(destroy, 'identity') as identity:
+            destroy.main()
+            identity.assert_not_called()
+
+    def test_unapproved_bucket_and_state_bucket_cannot_be_emptied(self):
+        with patch.object(destroy, 'aws') as api:
+            for name in ('someone-else-bucket', 'final-tfstate-021158485482-ap-northeast-2'):
+                with self.assertRaises(ValueError):
+                    destroy.clear_bucket(name)
+            api.assert_not_called()
+
+    def test_failed_inventory_does_not_mean_all_resources_are_gone(self):
+        with patch.object(destroy, 'aws', side_effect=RuntimeError('AccessDenied')):
+            with self.assertRaises(RuntimeError):
+                destroy.leftovers({'vpc': 'vpc-example', 'volumes': []})
+
+    def test_already_removed_storage_is_skipped_only_after_successful_inventory(self):
+        answers = [{'trailList': []}, {'Buckets': []}, {'repositories': []}]
+        with patch.object(destroy, 'aws', side_effect=answers) as api:
+            destroy.storage()
+            self.assertEqual([c.args[:2] for c in api.call_args_list], [
+                ('cloudtrail', 'describe-trails'), ('s3api', 'list-buckets'), ('ecr', 'describe-repositories')])
+
+    def test_s3_partial_delete_error_fails_stage(self):
+        answers = [{'Versions': [{'Key': 'example', 'VersionId': '1'}]}, {'Errors': [{'Code': 'AccessDenied'}]}]
+        with patch.object(destroy, 'aws', side_effect=answers):
+            with self.assertRaises(ValueError):
+                destroy.clear_bucket(destroy.BUCKETS[0])
+
+    def test_bot_release_dispatches_checks_without_aws_publication(self):
+        sha = 'a' * 40
+        calls = []
+
+        def run(*args):
+            calls.append(args)
+            return sha + '\trefs/heads/main' if args[:2] == ('git', 'ls-remote') else ''
+
+        environment = {'GITHUB_SHA': sha, 'GITHUB_REPOSITORY': 'owner/repo', 'GITHUB_RUN_ID': '1',
+                       'GITHUB_RUN_ATTEMPT': '1', 'RELEASE_APP_ID': ''}
+        with patch.dict(os.environ, environment), patch.object(release, 'run', side_effect=run), patch.object(release, 'Path', return_value=MagicMock()):
+            release.propose()
+        dispatch = next(c for c in calls if c[:3] == ('gh', 'workflow', 'run'))
+        self.assertIn('publish_images=false', dispatch)
+        self.assertFalse(any(c[:2] == ('git', 'push') and 'main' in c for c in calls))
+
+
+if __name__ == '__main__':
+    unittest.main()

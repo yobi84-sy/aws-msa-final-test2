@@ -1,3 +1,5 @@
+> **2차 빌드 준비:** t3.medium 3~6대, 설치 준비 확인, DB TLS·비밀번호 전달, 단계별 삭제·검증을 보완했습니다. AWS 재구축 전이며, [현재 수동 실행 가이드](docs/14-second-build.md)를 먼저 확인하세요.
+
 > **test2 개선 코드:** 주문 복구·Outbox·고객 이메일·Secrets Manager·승인 배포를 추가했습니다. 아직 AWS에 적용한 결과는 아닙니다. [변경·적용·검증 안내](docs/11-test2-delivery.md)를 먼저 읽어주세요.
 
 # AWS · EKS 서비스 운영 프로젝트

@@ -107,3 +107,13 @@ variable "internal_service_token" {
     error_message = "내부 서비스 토큰은 32자 이상이어야 합니다."
   }
 }
+
+# GitHub 읽기 토큰 교체 시 함께 올립니다.
+variable "github_token_revision" {
+  type    = number
+  default = 1
+  validation {
+    condition     = var.github_token_revision >= 1 && floor(var.github_token_revision) == var.github_token_revision
+    error_message = "github_token_revision은 양의 정수여야 합니다."
+  }
+}

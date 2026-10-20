@@ -1,0 +1,11 @@
+{
+  "account": "021158485482",
+  "profile": "eks-user",
+  "region": "ap-northeast-2",
+  "cluster": "Final-eks",
+  "namespace": "soldesk",
+  "url": "https://server.sy84.store",
+  "repository": "yobi84-sy/aws-msa-final-test2",
+  "loadBalancer": "final-shared-alb",
+  "database": "final-ordermsa-db"
+}

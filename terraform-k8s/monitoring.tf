@@ -147,6 +147,6 @@ resource "helm_release" "monitoring" {
   depends_on = [
     kubernetes_storage_class_v1.gp3,
     helm_release.cluster_autoscaler,
-    helm_release.load_balancer_controller
+    terraform_data.load_balancer_webhook_ready
   ]
 }

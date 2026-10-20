@@ -23,7 +23,7 @@ def select(paths, full=False):
             # 배포 매니페스트와 문서만 바꾸면 이미지를 다시 만들지 않습니다.
             if len(parts) > 1 and parts[1] != "k8s" and not path.endswith(".md"):
                 selected.add(parts[0])
-        elif parts[0] not in ("k8s", "legacy", "scripts") and rest != "kustomization.yaml" and not path.endswith((".md", ".ps1")):
+        elif parts[0] not in ("k8s", "legacy", "scripts", "ops") and rest != "kustomization.yaml" and not path.endswith((".md", ".ps1")):
             return list(SERVICES)
     return [s for s in SERVICES if s in selected]
 

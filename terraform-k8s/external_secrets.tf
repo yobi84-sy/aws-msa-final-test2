@@ -7,6 +7,7 @@ resource "helm_release" "external_secrets" {
   version          = "0.20.4"
   namespace        = "external-secrets"
   create_namespace = true
+  depends_on       = [terraform_data.load_balancer_webhook_ready]
   wait             = true
   timeout          = 600
   values = [yamlencode({
@@ -27,4 +28,18 @@ resource "helm_release" "database_secret" {
     roleArn   = data.terraform_remote_state.infra.outputs.database_secret_reader_role_arn
   })]
   depends_on = [helm_release.external_secrets]
+}
+
+# Helm installed does not imply that ESO has fetched the password successfully.
+resource "terraform_data" "database_secret_ready" {
+  count = data.terraform_remote_state.infra.outputs.manage_db_password ? 1 : 0
+  triggers_replace = [
+    helm_release.database_secret[0].id,
+    sha256(join("", helm_release.database_secret[0].values)),
+    filesha256("${path.module}/../scripts/ops/wait_database_secret.py"),
+    filesha256("${path.module}/../scripts/ops/wait_webhook.py")
+  ]
+  provisioner "local-exec" {
+    command = "python \"${path.module}/../scripts/ops/wait_database_secret.py\" --cluster \"${var.cluster_name}\" --profile \"${var.aws_profile}\" --region \"${var.aws_region}\""
+  }
 }

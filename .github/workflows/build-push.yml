@@ -6,8 +6,12 @@ on:
         description: '최초 재구축/게시 실패 복구용 전체 빌드 (AWS 게시는 main만)'
         type: boolean
         default: true
+      publish_images:
+        description: '실제 ECR 게시·배포 PR 생성 (최초 infra/ECR 준비 후 main에서만)'
+        type: boolean
+        default: false
   push:
-    branches: [main, test, test2]
+    branches: [main, test, test2, "build2/**"]
   pull_request:
     branches: [main, test2]
 permissions:
@@ -33,6 +37,8 @@ jobs:
         run: |
           if [ "$FULL" = true ]; then
             python3 scripts/ci/changed_services.py --all
+          elif [ "$GITHUB_REF" = refs/heads/main ] && [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+            python3 scripts/ci/changed_services.py --since-image-tags --head HEAD
           else
             python3 scripts/ci/changed_services.py --base "$BASE" --head HEAD
           fi
@@ -121,11 +127,12 @@ jobs:
           if [ "$SERVICES" != '[]' ]; then test "$TEST" = success; fi
   publish:
     needs: [changes, test, gate]
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.test.result == 'success'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.test.result == 'success' && (vars.ENABLE_IMAGE_PUBLISH == 'true' || (github.event_name == 'workflow_dispatch' && inputs.publish_images))
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
+      actions: write
       id-token: write
     steps:
       - uses: actions/checkout@v7
@@ -158,4 +165,5 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
           SERVICES_JSON: ${{ needs.changes.outputs.services }}
+          RELEASE_APP_ID: ${{ vars.RELEASE_APP_ID }}
         run: python3 scripts/ci/release_manifest.py propose
