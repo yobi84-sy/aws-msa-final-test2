@@ -43,6 +43,30 @@ class DeliveryTests(unittest.TestCase):
         for mutation in ({'schemaVersion':2},{'recipientEmail':'bad'},{'quantity':0},{'orderId':True},{'total':-1}):
             data=event();data.update(mutation)
             self.assertEqual(len(email.process(batch(data),Store(),lambda e:self.fail('must not send'))['batchItemFailures']),1)
+    def test_safe_error_diagnostics_keep_failure_retryable(self):
+        class SesError(Exception):
+            response = {'Error': {'Code': 'AccessDeniedException', 'Message': 'private recipient'}}
+        def fail(data): raise SesError('customer@example.com secret-message')
+        with self.assertLogs(email.logger, level='ERROR') as logs:
+            result = email.process(batch(event()), Store(), fail)
+        diagnostic = json.loads(logs.records[0].getMessage())
+        self.assertEqual(diagnostic['stage'], 'send')
+        self.assertEqual(diagnostic['awsErrorCode'], 'AccessDeniedException')
+        self.assertEqual(diagnostic['orderId'], 1)
+        self.assertEqual(result['batchItemFailures'], [{'itemIdentifier': 'message-1'}])
+        self.assertNotIn('customer@example.com', str(logs.output))
+        self.assertNotIn('secret-message', str(logs.output))
+        self.assertNotIn('private recipient', str(logs.output))
+
+    def test_record_sent_failure_is_distinguished_from_ses_failure(self):
+        class FailingStore(Store):
+            def sent(self, *args): raise RuntimeError('private database error')
+        with self.assertLogs(email.logger, level='ERROR') as logs:
+            result = email.process(batch(event()), FailingStore(), lambda data: None)
+        self.assertEqual(json.loads(logs.records[0].getMessage())['stage'], 'record_sent')
+        self.assertEqual(len(result['batchItemFailures']), 1)
+        self.assertNotIn('private database error', str(logs.output))
+
     def test_sns_envelope_is_supported(self):
         self.assertEqual(email.parse(json.dumps({'Message':json.dumps(event())})),event())
     def test_digest_pin_changes_only_selected_service(self):

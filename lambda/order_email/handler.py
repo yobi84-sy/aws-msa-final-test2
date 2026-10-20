@@ -1,10 +1,13 @@
 """SNS/SQS 주문 이벤트 → SES. 비밀값/이메일/본문을 로그에 출력하지 않습니다."""
 import json
+import logging
 import os
 import re
 import time
 import uuid
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 class Busy(Exception):
     pass
@@ -37,14 +40,30 @@ def process(event, store, send, now=None):
     for record in event.get('Records', []):
         token = None
         data = None
+        stage = 'parse'
         try:
             data = parse(record['body'])
             token = str(uuid.uuid4())
+            stage = 'claim'
             if not store.claim(data['eventId'], token, now):
                 continue  # SENT인 이벤트만 성공 처리한다. 처리 중인 이벤트는 재시도한다.
+            stage = 'send'
             send(data)
+            stage = 'record_sent'
             store.sent(data['eventId'], token)
-        except Exception:
+        except Exception as failure:
+            response = getattr(failure, 'response', {})
+            error = response.get('Error', {}) if isinstance(response, dict) else {}
+            code = error.get('Code', '') if isinstance(error, dict) else ''
+            if not isinstance(code, str) or not re.fullmatch(r'[A-Za-z0-9_.-]{1,80}', code):
+                code = 'Unavailable'
+            # Only allowlisted diagnostics: never exception text, body, email or lease token.
+            logger.error(json.dumps({
+                'event': 'order_email_failed', 'stage': stage, 'awsErrorCode': code,
+                'errorType': type(failure).__name__,
+                'orderId': data['orderId'] if data else None,
+                'eventId': data['eventId'] if data else None,
+            }))
             # SES 수락 후 DB 완료 기록이 실패한 경우에도 중복 메일 가능성이 있다.
             # 이를 exactly-once로 표현하지 않는다.
             if data is not None and token is not None:
