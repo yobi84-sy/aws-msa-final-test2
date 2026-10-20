@@ -113,6 +113,20 @@ class CredentialPropagationTests(unittest.TestCase):
             sync.fingerprint({'data': {}})
 
 
+class EmptyAwsResponseTests(unittest.TestCase):
+    def test_successful_stop_logging_has_no_json_body(self):
+        with patch.object(verify.subprocess, 'run', return_value=MagicMock(returncode=0, stdout='')):
+            self.assertEqual(verify.run('aws', 'cloudtrail', 'stop-logging', '--name', 'test'), {})
+
+    def test_empty_query_and_failed_stop_logging_are_not_success(self):
+        with patch.object(verify.subprocess, 'run', return_value=MagicMock(returncode=0, stdout='')):
+            with self.assertRaises(ValueError):
+                verify.run('aws', 'ec2', 'describe-volumes')
+        with patch.object(verify.subprocess, 'run', return_value=MagicMock(returncode=1, stdout='')):
+            with self.assertRaises(RuntimeError):
+                verify.run('aws', 'cloudtrail', 'stop-logging')
+
+
 class ReadinessTests(unittest.TestCase):
     def test_webhook_needs_a_ready_endpoint(self):
         self.assertFalse(webhook.endpoints_ready({'items': []}))

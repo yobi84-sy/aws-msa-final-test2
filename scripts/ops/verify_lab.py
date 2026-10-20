@@ -16,6 +16,9 @@ def run(*args):
     result = subprocess.run(args, text=True, encoding='utf-8', capture_output=True, timeout=45)
     if result.returncode:
         raise RuntimeError('query failed: ' + ' '.join(args[:2]))
+    # AWS stop-logging succeeds with no response body. Empty query output is still an error.
+    if not result.stdout.strip() and args[:3] == ('aws', 'cloudtrail', 'stop-logging'):
+        return {}
     return json.loads(result.stdout)
 
 
