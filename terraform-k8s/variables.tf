@@ -37,9 +37,16 @@ variable "github_username" {
 
 # 실행할 때만 전달하고 Terraform 상태 파일에는 저장하지 않음
 variable "github_token" {
+  default   = ""
   type      = string
   sensitive = true
   ephemeral = true
+}
+
+# 현재 저장소는 public입니다. private으로 전환할 때만 읽기 토큰 Secret을 만듭니다.
+variable "github_repository_public" {
+  type    = bool
+  default = true
 }
 
 # RDS 생성 시 사용한 비밀번호를 앱에도 동일하게 전달

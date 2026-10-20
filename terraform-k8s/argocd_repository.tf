@@ -1,5 +1,6 @@
 # Argo CD가 사용할 Private GitHub 저장소 인증 정보
 resource "kubernetes_secret_v1" "argocd_repository" {
+  count = var.github_repository_public ? 0 : 1
   metadata {
     name = "final-github-repository"
 

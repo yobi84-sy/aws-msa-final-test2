@@ -78,5 +78,20 @@ run "zonal_scheduling" {
     condition     = length(kubernetes_secret_v1.database) == 0 && length(helm_release.external_secrets) == 1 && length(helm_release.database_secret) == 1
     error_message = "Managed password must have one ESO owner and no Terraform-owned password Secret."
   }
+  assert {
+    condition     = length(kubernetes_secret_v1.argocd_repository) == 0
+    error_message = "Public source must not require a GitHub token Secret."
+  }
 
+}
+
+run "private_repository_opt_in" {
+  command = plan
+  variables {
+    github_repository_public = false
+  }
+  assert {
+    condition     = length(kubernetes_secret_v1.argocd_repository) == 1
+    error_message = "Private repository opt-in must create its authentication Secret."
+  }
 }

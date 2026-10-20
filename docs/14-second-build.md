@@ -26,7 +26,8 @@
 ```powershell
 git clone https://github.com/yobi84-sy/aws-msa-final-test2.git
 Set-Location .\aws-msa-final-test2
-git switch build2/reliability  # 변경 검토용. 실제 실행 버전은 병합 후 함께 확정
+git switch main
+git pull --ff-only
 git rev-parse HEAD
 aws --version
 terraform version
@@ -87,7 +88,7 @@ terraform -chdir=terraform-k8s apply tools.tfplan
 python scripts/ops/verify_lab.py tools --report .lab/tools.json
 ```
 
-Prepare-Secrets는 **같은 PowerShell 창에서** 실행합니다. 별도 `powershell -File` 창에서 실행하면 ephemeral 입력 환경 변수가 현재 창에 남지 않습니다. 창을 바꾸면 다시 준비합니다. JWT/내부 토큰은 기존 Secret이 있으면 재사용합니다. GitHub 읽기 토큰은 화면·명령 인수·파일에 쓰지 않습니다. 읽기 토큰 변경 시 `github_token_revision`도 올립니다.
+Prepare-Secrets는 **같은 PowerShell 창에서** 실행합니다. 별도 `powershell -File` 창에서 실행하면 ephemeral 입력 환경 변수가 현재 창에 남지 않습니다. 창을 바꾸면 다시 준비합니다. JWT/내부 토큰은 기존 Secret이 있으면 재사용합니다. 현재 공개 저장소는 Argo에서 익명으로 읽으므로 GitHub 토큰을 요구하지 않습니다. 나중에 비공개로 바꾸면 `-PrivateRepository`로 실행하고 `github_repository_public=false`를 사용합니다. 이때 토큰은 화면·명령 인수·파일에 쓰지 않고, 읽기 토큰 변경 시 `github_token_revision`도 올립니다.
 
 아직 `enable_app_sync=false`, `enable_management_ingress=false`입니다. LBC/ESO gate가 실패하면 앱을 켜지 말고 원인을 해결한 뒤 같은 단계 plan/apply를 다시 합니다. gate 스크립트는 임시 kubeconfig로 대상 클러스터를 확인하며 기존 kubeconfig를 덮어쓰지 않습니다. **Terraform gate가 이미 성공한 이후의 상태도 아래 조회로 다시 확인**합니다.
 

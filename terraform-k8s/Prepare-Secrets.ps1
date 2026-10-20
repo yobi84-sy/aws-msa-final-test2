@@ -1,7 +1,7 @@
 ﻿# AWS 생성 및 kubeconfig 연결 후 실행: Terraform에 전달할 값만 준비
 # 파일에 비밀번호를 저장하거나 Terraform apply를 실행하지 않음
 [CmdletBinding()]
-param()
+param([switch]$PrivateRepository)
 $ErrorActionPreference = 'Stop'
 
 # JWT 키를 조회할 클러스터가 프로젝트 EKS인지 확인
@@ -55,7 +55,8 @@ if ($LASTEXITCODE -ne 0) { throw 'infra apply 및 manage_db_password 출력을 �
 if ($managed -ne 'true' -and -not $env:TF_VAR_db_password) {
     $env:TF_VAR_db_password = Read-SecretValue 'RDS 생성 시 사용한 DB 비밀번호'
 }
-if (-not $env:TF_VAR_github_token) {
+$env:TF_VAR_github_repository_public = (-not $PrivateRepository).ToString().ToLowerInvariant()
+if ($PrivateRepository -and -not $env:TF_VAR_github_token) {
     $env:TF_VAR_github_token = Read-SecretValue 'GitHub 저장소 읽기 토큰'
 }
 Set-JwtValue 'JWT_SECRET' 'TF_VAR_jwt_secret'
