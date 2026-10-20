@@ -100,12 +100,12 @@ jobs:
         if: matrix.service == 'frontend'
         run: docker run --rm --add-host apigateway-service:127.0.0.1 local-check:frontend nginx -t
       - name: Save exact image for publishing (main only)
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (vars.ENABLE_IMAGE_PUBLISH == 'true' || (github.event_name == 'workflow_dispatch' && inputs.publish_images))
         env:
           SERVICE: ${{ matrix.service }}
         run: docker save local-check:$SERVICE | gzip > image.tar.gz
       - uses: actions/upload-artifact@v4
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (vars.ENABLE_IMAGE_PUBLISH == 'true' || (github.event_name == 'workflow_dispatch' && inputs.publish_images))
         with:
           name: image-${{ matrix.service }}
           path: image.tar.gz
