@@ -36,10 +36,15 @@ resource "terraform_data" "database_secret_ready" {
   triggers_replace = [
     helm_release.database_secret[0].id,
     sha256(join("", helm_release.database_secret[0].values)),
+    sha256(local.readiness_python_command),
     filesha256("${path.module}/../scripts/ops/wait_database_secret.py"),
     filesha256("${path.module}/../scripts/ops/wait_webhook.py")
   ]
   provisioner "local-exec" {
-    command = "python \"${path.module}/../scripts/ops/wait_database_secret.py\" --cluster \"${var.cluster_name}\" --profile \"${var.aws_profile}\" --region \"${var.aws_region}\""
+    interpreter = ["python", "-c"]
+    command     = local.readiness_python_command
+    environment = merge(local.readiness_environment, {
+      FINAL_CHECK_SCRIPT = abspath("${path.module}/../scripts/ops/wait_database_secret.py")
+    })
   }
 }

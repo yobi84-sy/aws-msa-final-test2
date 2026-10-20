@@ -54,6 +54,8 @@ jobs:
         with:
           terraform_version: '1.16.2'
       - run: python3 -m pip install 'PyYAML==6.0.3'
+      - name: Execute readiness provisioners locally (no AWS)
+        run: python3 -m unittest discover -s tests -p test_local_exec.py -v
       - name: Terraform validate (no backend and no AWS authentication)
         run: |
           terraform fmt -check -recursive terraform terraform-k8s terraform-state-bootstrap
@@ -73,6 +75,19 @@ jobs:
           --set region=ap-northeast-2
           --set secretArn=arn:aws:secretsmanager:ap-northeast-2:021158485482:secret:mock
           --set roleArn=arn:aws:iam::021158485482:role/mock
+  windows-readiness:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.16.2'
+          terraform_wrapper: false
+      - name: Execute both readiness provisioners on Windows (no AWS)
+        run: python -m unittest discover -s tests -p test_local_exec.py -v
   test:
     needs: changes
     if: needs.changes.outputs.services != '[]'
@@ -113,17 +128,19 @@ jobs:
   gate:
     name: required-ci
     if: always()
-    needs: [changes, config, test]
+    needs: [changes, config, windows-readiness, test]
     runs-on: ubuntu-latest
     steps:
       - env:
           CHANGES: ${{ needs.changes.result }}
           CONFIG: ${{ needs.config.result }}
+          WINDOWS: ${{ needs.windows-readiness.result }}
           TEST: ${{ needs.test.result }}
           SERVICES: ${{ needs.changes.outputs.services }}
         run: |
           test "$CHANGES" = success
           test "$CONFIG" = success
+          test "$WINDOWS" = success
           if [ "$SERVICES" != '[]' ]; then test "$TEST" = success; fi
   publish:
     needs: [changes, test, gate]

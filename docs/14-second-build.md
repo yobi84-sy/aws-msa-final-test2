@@ -121,6 +121,12 @@ python scripts/ops/check_release.py --revision $revision
 
 ## 3. DB 비밀번호 자동 전달과 TLS
 
+### Windows에서 readiness 경로 오류가 났던 경우
+
+2026-10-20 학교 PC 첫 실행에서 `cmd /C`를 경유한 local-exec가 상대 경로의 따옴표를 잘못 전달했습니다. 이제 Python을 직접 interpreter로 실행하고 절대 경로·인수를 환경 변수로 전달합니다. 두 gate를 같은 방식으로 수정했으며 Windows/Python 3.12 CI와 provider 없는 실제 local-exec 테스트로 검사합니다.
+
+이 오류로 멈췄다면 인프라를 삭제하거나 기존 `tools.tfplan`을 다시 적용하지 마세요. 같은 PowerShell 창에서 `git pull --ff-only origin main` 후 `terraform "-chdir=terraform-k8s" plan "-out=tools-resume.tfplan"`으로 **새 계획**을 확인합니다. 실패한 `terraform_data`는 재생성으로 나올 수 있지만 AWS 리소스 삭제와는 다릅니다. 교체 대상 주소를 확인한 후 새 plan으로 재개합니다. 설치된 리소스를 초기화하거나 state를 지울 필요는 없습니다.
+
 공식 CA 원본: https://truststore.pki.rds.amazonaws.com/ap-northeast-2/ap-northeast-2-bundle.pem
 
 2026-10-20 포함한 공개 인증서 번들의 SHA256: `913fb5b814f17af79d4c1622584a8d0ceddf5b0d76fe353d0c7d1186cdd6b229`. 세 서비스 Dockerfile에서 개별 인증서를 Java 기본 cacerts에 등록합니다. `changeit`은 공개 CA 신뢰 저장소의 기본 비밀번호이며 DB 비밀번호가 아닙니다. 향후 RDS CA 교체 시 번들 출처·체크섬을 재확인해 이미지도 갱신해야 합니다.
