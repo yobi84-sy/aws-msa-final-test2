@@ -1,4 +1,4 @@
-# 현재 PC의 비밀이 아닌 실행값만 준비합니다. AWS 리소스 변경과 apply는 하지 않습니다.
+﻿# 현재 PC의 비밀이 아닌 실행값만 준비합니다. AWS 리소스 변경과 apply는 하지 않습니다.
 [CmdletBinding()]
 param()
 $ErrorActionPreference = 'Stop'

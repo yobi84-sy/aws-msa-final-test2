@@ -1,4 +1,4 @@
-# 초대는 최초 설치 확인 후 엽이가 실행합니다. 기본은 대상 표시만 합니다.
+﻿# 초대는 최초 설치 확인 후 엽이가 실행합니다. 기본은 대상 표시만 합니다.
 [CmdletBinding()]
 param([switch]$Apply, [switch]$InitialInstallVerified)
 $ErrorActionPreference = 'Stop'

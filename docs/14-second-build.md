@@ -34,6 +34,8 @@ kubectl version --client
 helm version --short
 python --version
 gh auth status
+# 현재 창에서 로컬 스크립트 실행이 Restricted로 막힌 경우에만
+Set-ExecutionPolicy -Scope Process RemoteSigned
 python -m pip install PyYAML==6.0.3
 python scripts/ops/verify_lab.py identity
 & .\scripts\ops\New-LabConfig.ps1
@@ -68,9 +70,9 @@ plan 파일은 민감할 수 있어 공유하지 않습니다. 성공 문구뿐 
 ```powershell
 # infra output이 만든 현재 역할 ARN을 repository variable에 연결
 $role = terraform -chdir=terraform output -raw github_actions_role_arn
-gh variable set AWS_ROLE_TO_ASSUME --body $role
+gh variable set AWS_ROLE_TO_ASSUME --repo yobi84-sy/aws-msa-final-test2 --body $role
 # main에 이번 코드가 준비된 뒤 최초 전체 빌드·게시 (실제 ECR 쓰기)
-gh workflow run build-push.yml --ref main -f full_build=true -f publish_images=true
+gh workflow run build-push.yml --repo yobi84-sy/aws-msa-final-test2 --ref main -f full_build=true -f publish_images=true
 gh run list --workflow build-push.yml --limit 3
 ```
 
@@ -92,6 +94,7 @@ Prepare-Secrets는 **같은 PowerShell 창에서** 실행합니다. 별도 `powe
 ```powershell
 python scripts/ops/wait_webhook.py --cluster Final-eks --profile eks-user --region ap-northeast-2
 python scripts/ops/wait_database_secret.py
+& .\app\msa\Prepare-Admin.ps1
 ```
 
 5개 이미지·ESO Ready·관리자 초기 Secret을 확인한 후 `terraform-k8s/terraform.tfvars`의 두 enable 값을 true로 변경하여 새 plan/apply를 실행합니다. 관리자 bootstrap은 기존 안내의 명령을 그대로 사용하고, 비밀번호를 메신저/로그로 공유하지 않습니다.
@@ -147,7 +150,7 @@ Member 기존 관리자 요약 API에 `database.tlsEncrypted`를 추가했습니
 & .\scripts\github\Invite-Team.ps1 -Apply -InitialInstallVerified
 # 팀원 수락·write 권한 및 required-ci 실행 확인 후
 & .\scripts\github\Set-ReviewRules.ps1 -Apply -InitialInstallVerified
-gh variable set ENABLE_IMAGE_PUBLISH --body true
+gh variable set ENABLE_IMAGE_PUBLISH --repo yobi84-sy/aws-msa-final-test2 --body true
 ```
 
 대상: yunjun1208, yonginfra, yjeee-ghub / 소유자 yobi84-sy. 이메일 대신 GitHub 로그인 ID를 사용합니다. 준비한 보호 규칙은 **다른 사람 1명 승인**, 새 push 시 승인 재검토, required-ci 성공, 관리자 포함 직접 push·강제 push 차단입니다. 초대 수락과 실제 차단은 배포 후 확인합니다. 아직 이 설정은 적용하지 않았습니다.
