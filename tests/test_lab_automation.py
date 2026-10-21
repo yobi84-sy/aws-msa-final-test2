@@ -350,6 +350,29 @@ class StateBucketRunner:
 
 
 class StateRemovalTests(unittest.TestCase):
+    def test_empty_sqs_inventory_is_explicit_but_remaining_or_denied_queues_block(self):
+        keys = ('clusters DBInstances DBSnapshots DBInstanceAutomatedBackups '
+                'LoadBalancers LoadBalancerDescriptions Volumes Buckets repositories Roles '
+                'Policies Addresses Functions Topics TableNames trailList MetricAlarms '
+                'OpenIDConnectProviderList CertificateSummaryList SecretList projects logGroups '
+                'ResourceRecordSets').split()
+        for mode in ('empty', 'remaining', 'denied'):
+            def aws(service, operation, *args, **kwargs):
+                if (service, operation) == ('sqs', 'list-queues'):
+                    self.assertIn('--query', args)
+                    # Model the CLI's empty JSON response after the projection.
+                    if mode == 'denied':
+                        raise common.CommandError(['aws', 'sqs', 'list-queues'], SimpleNamespace(
+                            returncode=254, stdout='', stderr='An error occurred (AccessDenied)'))
+                    return {'QueueUrls': [] if mode == 'empty' else ['https://sqs.example/Final-leftover']}
+                return {key: [] for key in keys}
+            runner = SimpleNamespace(aws=aws)
+            if mode == 'empty':
+                self.assertEqual(remove.verify_deleted(runner, {'volumes': []})['status'], 'PASS')
+            else:
+                with self.assertRaises((ValueError, common.CommandError)):
+                    remove.verify_deleted(runner, {'volumes': []})
+
     def empty(self):
         return {name: {'resources': []} for name in common.STATE_KEYS}
     def test_state_bucket_is_last_and_versions_are_batched_via_file(self):
