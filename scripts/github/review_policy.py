@@ -96,16 +96,14 @@ def evaluate(api, number, team):
 def publish_check(api, sha, conclusion, title):
     if not re.fullmatch(r'[a-f0-9]{40}', sha):
         raise ValueError('Invalid check SHA')
-    existing = api.api('commits/' + sha + '/check-runs?per_page=100')['check_runs']
-    matches = [c for c in existing if c['name'] == 'release-approval' and c.get('app', {}).get('slug') == 'github-actions']
     payload = {'name': 'release-approval', 'head_sha': sha,
                'status': 'in_progress' if conclusion == 'pending' else 'completed',
                'output': {'title': title, 'summary': 'Peer approval is separate from CI execution permission. No AWS operation was performed.'}}
     if conclusion != 'pending':
         payload['conclusion'] = conclusion
-    if matches:
-        payload.pop('head_sha')
-        return api.api('check-runs/' + str(max(matches, key=lambda c: c['id'])['id']), method='PATCH', payload=payload)
+    # A previous run may belong to a superseded Actions check suite. Updating
+    # that check leaves it outside the PR's current rollup. Publish this freshly
+    # evaluated decision in the current invocation; never reuse an old suite.
     return api.api('check-runs', method='POST', payload=payload)
 
 
