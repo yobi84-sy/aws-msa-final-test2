@@ -1,24 +1,24 @@
 {
   "images": {
     "member": {
-      "source": "786c3c85f7526f8c62731b8c8b4a30ba3deb003a",
-      "digest": "sha256:c45bcafa8e2aa05abae82e3aadfcd47f773c66413ce8ab0d6cdf86dca1963388"
+      "source": "50f730b4fcf0daba3508ae0e832a16222ddef106",
+      "digest": "sha256:20b20749a870b6ad336d7e210467864c525e9bf9f83801de0da9d2624ea10ca1"
     },
     "product": {
-      "source": "786c3c85f7526f8c62731b8c8b4a30ba3deb003a",
-      "digest": "sha256:4f85a64e5511f4866aa4c7f82d56fbe3f8ed7f35704c4ace9348757fa4fd2224"
+      "source": "50f730b4fcf0daba3508ae0e832a16222ddef106",
+      "digest": "sha256:6683da1233f52459905d54dcd9152633fa1232fac19eed415e42b83dc02153c9"
     },
     "ordering": {
-      "source": "786c3c85f7526f8c62731b8c8b4a30ba3deb003a",
-      "digest": "sha256:28f8aa8f541524f86b6549c7cd3746ac4418f3033f3f8cc8d51da811b7996248"
+      "source": "50f730b4fcf0daba3508ae0e832a16222ddef106",
+      "digest": "sha256:717680749c1ba388468c091311fd139c1c3fee52b104e9b28a392a277455130a"
     },
     "apigateway": {
-      "source": "786c3c85f7526f8c62731b8c8b4a30ba3deb003a",
-      "digest": "sha256:ab3c79589907f604cb907a51af898516c0e9dc53c5112d3b83c41b3409d5f86c"
+      "source": "50f730b4fcf0daba3508ae0e832a16222ddef106",
+      "digest": "sha256:343ec4832c9ea5052e296f332fc576b35f3dcbcb175a95823f5703595a93a060"
     },
     "frontend": {
-      "source": "786c3c85f7526f8c62731b8c8b4a30ba3deb003a",
-      "digest": "sha256:1422fe000066a9f7120e26a37586d14dbcd715284b1ad24c7361234bf9622223"
+      "source": "50f730b4fcf0daba3508ae0e832a16222ddef106",
+      "digest": "sha256:12c661cb982d8f8d1dec41831e880b214afe60903cc86be0d324466dd544029b"
     }
   },
   "intent": "release",
@@ -29,5 +29,5 @@
     "apigateway",
     "frontend"
   ],
-  "runId": "39384079644"
+  "runId": "39562669126"
 }
