@@ -10,10 +10,11 @@ module "rds" {
   eks_security_group_id = module.eks.cluster_security_group_id
 
   # 실제 DB 인스턴스 설정
-  db_instance_class  = var.db_instance_class
-  db_engine_version  = var.db_engine_version
-  db_password        = var.db_password
-  manage_db_password = var.manage_db_password
+  db_instance_class   = var.db_instance_class
+  db_engine_version   = var.db_engine_version
+  db_password         = var.db_password
+  manage_db_password  = var.manage_db_password
+  snapshot_identifier = var.db_snapshot_identifier
 }
 
 # 애플리케이션의 DB_HOST에 사용할 주소

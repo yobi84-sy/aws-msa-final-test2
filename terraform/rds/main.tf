@@ -47,9 +47,10 @@ resource "aws_vpc_security_group_ingress_rule" "mysql_from_eks" {
 resource "aws_db_instance" "main" {
   identifier = "${lower(var.project_name)}-ordermsa-db"
 
-  engine         = "mysql"
-  engine_version = var.db_engine_version
-  instance_class = var.db_instance_class
+  snapshot_identifier = var.snapshot_identifier
+  engine              = "mysql"
+  engine_version      = var.db_engine_version
+  instance_class      = var.db_instance_class
 
   # 기존 애플리케이션 설정과 맞추기
   db_name  = "ordermsa"
@@ -83,6 +84,8 @@ resource "aws_db_instance" "main" {
   deletion_protection      = false
   skip_final_snapshot      = true
   delete_automated_backups = true
+
+  lifecycle { ignore_changes = [snapshot_identifier] }
 
   tags = {
     Name = "${var.project_name}-ordermsa-db"

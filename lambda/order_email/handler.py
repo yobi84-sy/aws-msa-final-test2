@@ -60,6 +60,16 @@ def failure_log(failure, stage, data=None, kind=None):
     }))
 
 
+def processing_log(event, data, kind, response=None):
+    item = {'event': event, 'eventId': data['eventId'], 'orderId': data['orderId'],
+            'notificationKind': kind}
+    message_id = response.get('MessageId') if isinstance(response, dict) else None
+    if isinstance(message_id, str) and re.fullmatch(r'[A-Za-z0-9-]{1,200}', message_id):
+        item['sesMessageId'] = message_id
+    # WARNING is deliberate: Lambda's default Python logger otherwise omits INFO.
+    logger.warning(json.dumps(item))
+
+
 def process(event, store, send, now=None, admin_email=None):
     now = int(time.time()) if now is None else now
     failures = []
@@ -79,10 +89,12 @@ def process(event, store, send, now=None, admin_email=None):
             stage = 'claim'
             try:
                 if not store.claim(key, token, now):
+                    processing_log('order_email_duplicate_skipped', data, delivery['notificationKind'])
                     continue
                 claimed = True
                 stage = 'send'
-                send(delivery)
+                response = send(delivery)
+                processing_log('order_email_accepted', data, delivery['notificationKind'], response)
                 stage = 'record_sent'
                 store.sent(key, token)
             except Exception as failure:
@@ -137,7 +149,7 @@ def handler(event, context):
     def send(data):
         kind = data['notificationKind']
         title, body = mail_content(data, kind)
-        ses.send_email(FromEmailAddress=os.environ['SENDER_EMAIL'], Destination={'ToAddresses':[data['recipientEmail']]},
+        return ses.send_email(FromEmailAddress=os.environ['SENDER_EMAIL'], Destination={'ToAddresses':[data['recipientEmail']]},
             Content={'Simple':{'Subject':{'Data':title,'Charset':'UTF-8'},
             'Body':{'Text':{'Data':body,'Charset':'UTF-8'}}}})
     return process(event, store, send, admin_email=os.environ.get('ADMIN_EMAIL', '').strip())

@@ -95,3 +95,15 @@ run "private_repository_opt_in" {
     error_message = "Private repository opt-in must create its authentication Secret."
   }
 }
+
+run "restored_grafana_claim" {
+  command = plan
+  variables {
+    grafana_existing_claim  = "monitoring-grafana"
+    grafana_existing_secret = "monitoring-grafana-restored"
+  }
+  assert {
+    condition     = yamldecode(helm_release.monitoring.values[1]).grafana.persistence.existingClaim == "monitoring-grafana" && yamldecode(helm_release.monitoring.values[1]).grafana.admin.existingSecret == "monitoring-grafana-restored"
+    error_message = "Restore must reuse the prebound Grafana PVC and its original credentials."
+  }
+}

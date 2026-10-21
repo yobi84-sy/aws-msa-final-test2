@@ -7,5 +7,13 @@
   "url": "https://server.sy84.store",
   "repository": "yobi84-sy/aws-msa-final-test2",
   "loadBalancer": "final-shared-alb",
-  "database": "final-ordermsa-db"
+  "database": "final-ordermsa-db",
+  "project": "Final",
+  "stateBucket": "final-tfstate-021158485482-ap-northeast-2",
+  "verifyProject": "Final-deploy-verify",
+  "verifyBucket": "final-deploy-verify-021158485482-ap-northeast-2",
+  "hostedZoneId": "Z03158761YPLKM1NEY8PO",
+  "websiteHost": "server.sy84.store",
+  "argoHost": "argocd.sy84.store",
+  "grafanaHost": "grafana.sy84.store"
 }

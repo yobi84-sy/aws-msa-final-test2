@@ -1,9 +1,11 @@
 provider "aws" {
   # 지역은 서울
-  region = "ap-northeast-2"
+  region = local.environment.region
 
   # Profile Default
-  profile = "eks-user"
+  profile = local.environment.profile
+
+  allowed_account_ids = [local.environment.account]
 
   # 콘솔에서 알기 쉽도록 Tag
   default_tags {

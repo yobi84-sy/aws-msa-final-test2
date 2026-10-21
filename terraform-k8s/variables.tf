@@ -124,3 +124,13 @@ variable "github_token_revision" {
     error_message = "github_token_revision은 양의 정수여야 합니다."
   }
 }
+
+# Only set by Resume-Lab after restoring the exact bound monitoring claims.
+variable "grafana_existing_claim" {
+  type    = string
+  default = ""
+}
+variable "grafana_existing_secret" {
+  type    = string
+  default = ""
+}

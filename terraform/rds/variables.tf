@@ -39,3 +39,8 @@ variable "manage_db_password" {
   type    = bool
   default = true
 }
+
+variable "snapshot_identifier" {
+  type    = string
+  default = null
+}

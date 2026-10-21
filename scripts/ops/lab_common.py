@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG = json.loads((Path(__file__).with_name('environment.json')).read_text(encoding='utf-8'))
-STATE_BUCKET = 'final-tfstate-021158485482-ap-northeast-2'
+STATE_BUCKET = CONFIG['stateBucket']
 STATE_KEYS = {'terraform': 'final/infra/terraform.tfstate', 'terraform-k8s': 'final/k8s/terraform.tfstate'}
 APP_NAMES = ('member-depl', 'product-depl', 'ordering-depl')
 EMAIL = re.compile(r'^[A-Za-z0-9.!#$%&*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
@@ -141,6 +141,8 @@ def confirm(prompt, approved=False):
 
 
 def preflight(runner, *, github=True):
+    from check_environment import check
+    check(runner.root)
     if sys.version_info < (3, 12):
         raise ValueError('Python 3.12+ is required')
     tools = ['aws', 'terraform', 'kubectl', 'helm', 'git'] + (['gh'] if github else [])
@@ -208,7 +210,8 @@ def public_ip():
 
 def infra_variables(settings, cidr, *, dns=False, mail=False):
     valid_settings(settings)
-    return {'eks_admin_principal_arn': settings['adminArn'], 'eks_public_access_cidrs': [cidr],
+    recovery = recovery_inputs()
+    return {**{k:v for k,v in recovery.items() if k == 'db_snapshot_identifier'}, 'eks_admin_principal_arn': settings['adminArn'], 'eks_public_access_cidrs': [cidr],
             'eks_node_instance_types': ['t3.medium'], 'keep_legacy_node_group': False,
             'alert_email': settings['alertEmail'], 'manage_db_password': True,
             'customer_email_sender': settings['senderEmail'], 'customer_email_admin': settings['adminEmail'],
@@ -217,8 +220,14 @@ def infra_variables(settings, cidr, *, dns=False, mail=False):
             'enable_website_dns': dns, 'enable_management_dns': dns}
 
 
+def recovery_inputs():
+    path = ROOT / '.lab/recovery-inputs.json'
+    return json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+
+
 def k8s_variables(revision='main', *, active=False):
-    return {'github_repo_url': 'https://github.com/' + CONFIG['repository'] + '.git',
+    return {'aws_profile': CONFIG['profile'], 'aws_region': CONFIG['region'], 'cluster_name': CONFIG['cluster'],
+            **{k:v for k,v in recovery_inputs().items() if k.startswith('grafana_existing_')}, 'github_repo_url': 'https://github.com/' + CONFIG['repository'] + '.git',
             'github_repository_public': True, 'github_revision': revision,
             'enable_app_sync': active, 'enable_management_ingress': active}
 

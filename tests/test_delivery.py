@@ -25,6 +25,18 @@ def event():
     return {'schemaVersion':1,'eventType':'ORDER_CREATED','eventId':'12345678-1234-4234-8234-123456789abc','orderId':1,'memberId':7,'recipientEmail':'customer@example.com','productName':'shoe','quantity':2,'total':3000}
 def batch(data):return {'Records':[{'messageId':'message-1','body':json.dumps(data)}]}
 class DeliveryTests(unittest.TestCase):
+    def test_success_and_duplicate_logs_do_not_include_recipient_or_body(self):
+        store=Store()
+        with patch.object(email.logger,'warning') as logger:
+            email.process(batch(event()),store,lambda data:{'MessageId':'accepted-message-123'})
+            email.process(batch(event()),store,lambda data:None)
+        logs=[json.loads(call.args[0]) for call in logger.call_args_list]
+        self.assertEqual([item['event'] for item in logs],['order_email_accepted','order_email_duplicate_skipped'])
+        self.assertEqual(logs[0]['sesMessageId'],'accepted-message-123')
+        serialized=json.dumps(logs)
+        self.assertNotIn(event()['recipientEmail'],serialized)
+        self.assertNotIn(event()['productName'],serialized)
+
     def test_buyer_and_admin_are_delivered_and_deduplicated_independently(self):
         store=Store();sent=[]
         for _ in range(2):

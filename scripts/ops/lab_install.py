@@ -271,6 +271,9 @@ def install(runner, settings, journal, directory, approved=False, config_path=No
                     '--config', str(config_path or ROOT / '.lab/lab-config.json'),
                     '--report', str(directory / 'verification.json')], timeout=1200)
     journal.stage('verify', verify, always=True)
+    runner.run([sys.executable, 'scripts/ops/run_private_verify.py', '--revision', revision,
+                '--profile', CONFIG['profile'], '--report', str(directory / 'private-verification.json')], timeout=1500)
+
     print('\nREADY: initial infrastructure and service checks passed.', flush=True)
     print('Initial GitOps revision is pinned. Before future automatic main deployments, have a teammate approve/merge ' + details['releaseUrl'], flush=True)
     print('Then run: .\\Install-Lab.ps1 -Execute -PromoteMain (approval is NOT bypassed).', flush=True)
@@ -323,6 +326,10 @@ def promote_main(runner, settings, journal, directory, approved=False, config_pa
     details['mainAdopted'] = sha
     journal.save()
     runner.run(['gh', 'variable', 'set', 'ENABLE_IMAGE_PUBLISH', '--repo', CONFIG['repository'], '--body', 'true'])
+    role = json.loads(runner.tf('terraform', 'output', '-json', 'github_deploy_check_role_arn'))
+    runner.run(['gh', 'variable', 'set', 'AWS_DEPLOY_CHECK_ROLE_ARN', '--repo', CONFIG['repository'], '--body', role])
+    runner.run(['gh', 'variable', 'set', 'ENABLE_DEPLOY_CHECKS', '--repo', CONFIG['repository'], '--body', 'true'])
+
     print('READY: Argo CD follows protected main; future release PR merges are deployed automatically.', flush=True)
 
 

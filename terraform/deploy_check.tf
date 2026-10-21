@@ -6,14 +6,5 @@ resource "aws_iam_role" "deploy_check" {
     Condition = { StringEquals = { "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com", "token.actions.githubusercontent.com:sub" = "repo:yobi84-sy@306224385/aws-msa-final-test2@1425236181:ref:refs/heads/main" } }
   }] })
 }
-resource "aws_iam_role_policy" "deploy_check" {
-  role   = aws_iam_role.deploy_check.id
-  policy = jsonencode({ Version = "2012-10-17", Statement = [{ Effect = "Allow", Action = "eks:DescribeCluster", Resource = module.eks.cluster_arn }] })
-}
-resource "aws_eks_access_entry" "deploy_check" {
-  cluster_name      = module.eks.cluster_name
-  principal_arn     = aws_iam_role.deploy_check.arn
-  kubernetes_groups = ["final-deploy-readers"]
-  type              = "STANDARD"
-}
+# GitHub submits builds; only the VPC CodeBuild role has Kubernetes read access.
 output "github_deploy_check_role_arn" { value = aws_iam_role.deploy_check.arn }
