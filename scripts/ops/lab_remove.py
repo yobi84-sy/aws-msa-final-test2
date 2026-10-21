@@ -129,7 +129,11 @@ def verify_deleted(runner, manifest, *, include_state=False):
     functions = runner.aws('lambda', 'list-functions')['Functions']
     if any(f['FunctionName'] == 'Final-order-email' for f in functions):
         remaining['lambda'] = ['Final-order-email']
-    queues = runner.aws('sqs', 'list-queues', '--queue-name-prefix', 'Final-').get('QueueUrls', [])
+    # AWS CLI emits no JSON at all for an empty SQS ListQueues response.
+    # Project an explicit object so an empty successful inventory is distinct
+    # from AccessDenied/transport errors (which Runner still rejects).
+    queues = runner.aws('sqs', 'list-queues', '--queue-name-prefix', 'Final-',
+                        '--query', '{QueueUrls: QueueUrls || `[]`}')['QueueUrls']
     if queues:
         remaining['sqs'] = queues
     topics = [t['TopicArn'] for t in runner.aws('sns', 'list-topics')['Topics'] if ':Final-' in t['TopicArn']]
