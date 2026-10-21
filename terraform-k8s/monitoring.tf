@@ -49,8 +49,8 @@ resource "helm_release" "monitoring" {
       grafana = merge(var.enable_management_ingress ? {
         "grafana.ini" = {
           server = {
-            domain   = "grafana.sy84.store"
-            root_url = "https://grafana.sy84.store"
+            domain   = local.environment.grafanaHost
+            root_url = "https://${local.environment.grafanaHost}"
           }
           # 대시보드는 기존 로그인 인증을 유지
           "auth.anonymous" = {
@@ -58,6 +58,8 @@ resource "helm_release" "monitoring" {
           }
         }
         } : {}, {
+        persistence = var.grafana_existing_claim != "" ? { existingClaim = var.grafana_existing_claim } : {}
+        admin       = var.grafana_existing_secret != "" ? { existingSecret = var.grafana_existing_secret } : {}
         # 기존 Grafana EBS와 같은 2c 그룹 사용
         nodeSelector = local.use_zonal_monitoring ? { "final-node-pool" = "az-c" } : {}
         affinity     = local.use_zonal_monitoring ? local.monitoring_anti_affinity : null

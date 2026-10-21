@@ -1,3 +1,12 @@
+# Bound SQS consumption; this is not an SES rate-per-second guarantee.
+variable "customer_email_max_concurrency" {
+  type    = number
+  default = 2
+  validation {
+    condition     = var.customer_email_max_concurrency >= 2 && var.customer_email_max_concurrency <= 1000 && floor(var.customer_email_max_concurrency) == var.customer_email_max_concurrency
+    error_message = "SQS maximum concurrency must be an integer from 2 to 1000."
+  }
+}
 # SES 인증 완료 후에만 소비자를 켭니다. 테스트 브랜치 push는 이 리소스를 적용하지 않습니다.
 variable "customer_email_enabled" {
   type    = bool
@@ -108,10 +117,11 @@ resource "aws_lambda_function" "order_email" {
   depends_on = [aws_iam_role_policy.order_email]
 }
 resource "aws_lambda_event_source_mapping" "order_email" {
-  count                   = local.email_configured ? 1 : 0
-  event_source_arn        = module.messaging.order_notifications_queue_arn
-  function_name           = aws_lambda_function.order_email[0].arn
-  enabled                 = var.customer_email_enabled
+  count            = local.email_configured ? 1 : 0
+  event_source_arn = module.messaging.order_notifications_queue_arn
+  function_name    = aws_lambda_function.order_email[0].arn
+  enabled          = var.customer_email_enabled
+  scaling_config { maximum_concurrency = var.customer_email_max_concurrency }
   batch_size              = 1
   function_response_types = ["ReportBatchItemFailures"]
   lifecycle {

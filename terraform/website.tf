@@ -1,11 +1,11 @@
 # 기존 sy84.store 공개 호스팅 영역 조회: 새 영역을 만들지 않음
 data "aws_route53_zone" "website" {
-  zone_id = "Z03158761YPLKM1NEY8PO"
+  zone_id = local.environment.hostedZoneId
 }
 
 # 서울 ALB에서 사용할 웹사이트 인증서
 resource "aws_acm_certificate" "website" {
-  domain_name       = "server.sy84.store"
+  domain_name       = local.environment.websiteHost
   validation_method = "DNS"
 
   lifecycle {
@@ -60,7 +60,7 @@ data "aws_lb" "website" {
 resource "aws_route53_record" "website" {
   count   = var.enable_website_dns ? 1 : 0
   zone_id = data.aws_route53_zone.website.zone_id
-  name    = "server.sy84.store"
+  name    = local.environment.websiteHost
   type    = "A"
 
   alias {
@@ -76,5 +76,5 @@ output "website_certificate_arn" {
 }
 
 output "website_url" {
-  value = "https://server.sy84.store"
+  value = local.environment.url
 }

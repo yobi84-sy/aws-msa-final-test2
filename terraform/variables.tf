@@ -155,3 +155,9 @@ variable "manage_db_password" {
   type    = bool
   default = true
 }
+
+# Set only for creation from a preserved manual snapshot. Never replaces a live DB.
+variable "db_snapshot_identifier" {
+  type    = string
+  default = null
+}

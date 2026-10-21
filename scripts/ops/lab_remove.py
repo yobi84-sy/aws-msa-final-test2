@@ -30,6 +30,15 @@ def pause_publishing(runner):
                             '--branch', 'main', '--limit', '100', '--json', 'databaseId,status'])
         if any(run['status'] != 'completed' for run in runs):
             raise ValueError('A main workflow is still active; wait/cancel it, then rerun removal before deleting AWS resources: ' + workflow)
+    projects = runner.aws('codebuild', 'list-projects')['projects']
+    if CONFIG['verifyProject'] in projects:
+        ids = runner.aws('codebuild', 'list-builds-for-project', '--project-name', CONFIG['verifyProject'],
+                         '--sort-order', 'DESCENDING', '--max-items', '100').get('ids', [])
+        if ids:
+            builds = runner.aws('codebuild', 'batch-get-builds', '--ids', *ids)['builds']
+            if any(b['buildStatus'] == 'IN_PROGRESS' for b in builds):
+                raise ValueError('Private verification is still active; wait/stop it before teardown')
+
 
 
 def empty_remote_state():
@@ -99,7 +108,7 @@ def verify_deleted(runner, manifest, *, include_state=False):
     if hits:
         remaining['ebs'] = hits
     buckets = {b['Name'] for b in runner.aws('s3api', 'list-buckets')['Buckets']}
-    expected_buckets = {'final-product-images-021158485482-ap-northeast-2', 'final-cloudtrail-021158485482-ap-northeast-2'}
+    expected_buckets = {'final-product-images-021158485482-ap-northeast-2', 'final-cloudtrail-021158485482-ap-northeast-2', CONFIG['verifyBucket']}
     if include_state:
         expected_buckets.add(STATE_BUCKET)
     if buckets & expected_buckets:
@@ -146,7 +155,10 @@ def verify_deleted(runner, manifest, *, include_state=False):
     matching_secrets = [s['ARN'] for s in secret_list if s['ARN'] in owned.get('secrets', [])]
     if matching_secrets:
         remaining['managedSecrets'] = matching_secrets
-    for prefix in ('/aws/eks/Final-eks/', '/aws/lambda/Final-order-email'):
+    builds = runner.aws('codebuild', 'list-projects')['projects']
+    if CONFIG['verifyProject'] in builds:
+        remaining['codebuild'] = [CONFIG['verifyProject']]
+    for prefix in ('/aws/eks/Final-eks/', '/aws/lambda/Final-order-email', '/aws/codebuild/' + CONFIG['verifyProject']):
         logs = runner.aws('logs', 'describe-log-groups', '--log-group-name-prefix', prefix)['logGroups']
         if logs:
             remaining['logs:' + prefix] = [l['logGroupName'] for l in logs]
@@ -322,6 +334,8 @@ def remove(runner, journal, directory, approved=False, keep_state=False, setting
                          'enable_website_dns': False, 'enable_management_dns': False, 'customer_email_enabled': False}
             apply_plan(runner, 'terraform', 'destroy-infra', variables, destroy=True, approved=approved, directory=directory)
     journal.stage('infra', infrastructure)
+    from lab_recovery import discard_snapshots
+    journal.stage('recovery-snapshots', lambda: discard_snapshots(runner), always=True)
 
     def residue():
         evidence = verify_deleted(runner, manifest)

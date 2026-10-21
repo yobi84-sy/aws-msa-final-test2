@@ -14,7 +14,7 @@ import time
 from verify_lab import CONFIG, aws, check, kube
 
 REPOS = ('member-service', 'product-service', 'ordering-service', 'apigateway', 'frontend-service')
-BUCKETS = ('final-product-images-021158485482-ap-northeast-2', 'final-cloudtrail-021158485482-ap-northeast-2')
+BUCKETS = ('final-product-images-021158485482-ap-northeast-2', 'final-cloudtrail-021158485482-ap-northeast-2', CONFIG['verifyBucket'])
 
 
 def command(*args):
