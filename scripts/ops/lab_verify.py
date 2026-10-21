@@ -9,7 +9,7 @@ import sys
 import time
 
 from lab_common import (APP_NAMES, CONFIG, ROOT, Journal, Runner, cluster, connect, ensure_revision,
-                        load_settings, now, preflight, save_json)
+                        load_settings, now, preflight, save_json, wait_alb)
 
 
 def credential_ready(runner, *, after=None, timeout=360, clock=time.monotonic, sleep=time.sleep):
@@ -53,8 +53,11 @@ def basic(runner, settings, revision, manifest_ref, directory):
     evidence = {}
     for phase in ('infra', 'tools', 'load-balancers'):
         path = directory / (phase + '.json')
-        runner.run([sys.executable, 'scripts/ops/verify_lab.py', phase, '--report', str(path)])
-        result = json.loads(path.read_text(encoding='utf-8'))
+        if phase == 'load-balancers':
+            result = wait_alb(runner, directory, timeout=300, report_name=path.name)
+        else:
+            runner.run([sys.executable, 'scripts/ops/verify_lab.py', phase, '--report', str(path)])
+            result = json.loads(path.read_text(encoding='utf-8'))
         if result.get('status') != 'PASS':
             raise ValueError('Failed phase: ' + phase)
         evidence[phase] = result['details']

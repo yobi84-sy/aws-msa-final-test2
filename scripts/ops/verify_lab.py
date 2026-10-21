@@ -12,6 +12,10 @@ import sys
 CONFIG = json.loads(Path(__file__).with_name('environment.json').read_text())
 
 
+class LoadBalancerPending(ValueError):
+    """Only known readiness states may be retried by the orchestration layer."""
+
+
 def run(*args):
     result = subprocess.run(args, text=True, encoding='utf-8', capture_output=True, timeout=45)
     if result.returncode:
@@ -95,15 +99,27 @@ def load_balancers():
     matches = [b for b in all_v2 if b.get('VpcId') == vpc]
     classic = [b['LoadBalancerName'] for b in all_v1 if b.get('VPCId') == vpc]
     shared = [b for b in matches if b['LoadBalancerName'] == CONFIG['loadBalancer']]
-    check(len(shared) == 1 and shared[0]['State']['Code'] == 'active', 'shared ALB absent/not active')
+    inventory = {'vpc': vpc, 'v2': [{'name': b['LoadBalancerName'], 'type': b['Type']} for b in matches], 'classic': classic}
+    # Inspect ownership/count before readiness, so extra LBs never become a wait.
+    check(not classic and len(matches) == len(shared) and len(shared) <= 1,
+          'additional LB in VPC; inspect tags, Ingress and Services before accepting (no deletion performed): ' + json.dumps(inventory))
+    if not shared:
+        raise LoadBalancerPending('shared ALB not created yet')
+    check(shared[0]['Type'] == 'application', 'shared load balancer is not an ALB')
+    code = shared[0]['State']['Code']
+    if code == 'provisioning':
+        raise LoadBalancerPending('shared ALB provisioning')
+    check(code == 'active', 'shared ALB failed/unknown state; inspect controller and AWS')
     groups = aws('elbv2', 'describe-target-groups', '--load-balancer-arn', shared[0]['LoadBalancerArn'])['TargetGroups']
-    check(bool(groups), 'ALB has no target groups')
+    if not groups:
+        raise LoadBalancerPending('ALB has no target groups yet')
     for group in groups:
         targets = aws('elbv2', 'describe-target-health', '--target-group-arn', group['TargetGroupArn'])['TargetHealthDescriptions']
-        check(bool(targets) and all(t['TargetHealth']['State'] == 'healthy' for t in targets), 'empty/unhealthy ALB target group')
-    inventory = {'vpc': vpc, 'v2': [{'name': b['LoadBalancerName'], 'type': b['Type']} for b in matches], 'classic': classic}
-    # Extra LB is a review hold, never an automatic deletion target.
-    check(len(matches) == 1 and not classic, 'additional LB in VPC; inspect tags, Ingress and Services before accepting (no deletion performed): ' + json.dumps(inventory))
+        states = [t['TargetHealth']['State'] for t in targets]
+        check(all(s in {'healthy', 'initial', 'draining', 'unhealthy', 'unused', 'unavailable'} for s in states),
+              'unknown ALB target state; inspect target health')
+        if not targets or any(s != 'healthy' for s in states):
+            raise LoadBalancerPending('ALB targets not all healthy yet')
     return inventory
 
 
@@ -112,7 +128,7 @@ def main():
     p.add_argument('phase', choices=['identity', 'infra', 'tools', 'load-balancers'])
     p.add_argument('--report', type=Path)
     args = p.parse_args()
-    result = {'phase': args.phase, 'status': 'FAIL'}
+    result = {'phase': args.phase, 'status': 'FAIL', 'retryable': False}
     try:
         identity = aws('sts', 'get-caller-identity')
         check(identity['Account'] == CONFIG['account'], 'wrong AWS account')
@@ -122,6 +138,8 @@ def main():
         result['details'] = {'identity': 'account matched'} if args.phase == 'identity' else {
             'infra': infra, 'tools': tools, 'load-balancers': load_balancers}[args.phase]()
         result['status'] = 'PASS'
+    except LoadBalancerPending as error:
+        result.update(reason=str(error), retryable=True)
     except (RuntimeError, ValueError, KeyError, subprocess.SubprocessError, OSError) as error:
         result['reason'] = str(error) if isinstance(error, (RuntimeError, ValueError)) else type(error).__name__
     text = json.dumps(result, indent=2, ensure_ascii=False)

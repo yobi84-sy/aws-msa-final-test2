@@ -275,6 +275,42 @@ def state(runner, root):
     return json.loads(runner.tf(root, 'state', 'pull'))
 
 
+def wait_alb(runner, directory, *, timeout=600, report_name='alb-check.json',
+             clock=time.monotonic, sleep=time.sleep):
+    """Retry fresh, explicitly pending reports; never hide query/ownership errors."""
+    path = Path(directory) / report_name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    deadline = clock() + timeout
+    while True:
+        # A previous pending report must not authorize retry after a crashed query.
+        path.unlink(missing_ok=True)
+        failure = None
+        try:
+            runner.run([sys.executable, 'scripts/ops/verify_lab.py', 'load-balancers', '--report', str(path)],
+                       timeout=max(1, min(180, deadline - clock())))
+        except CommandError as error:
+            failure = error
+        if not path.exists():
+            if failure:
+                raise failure
+            raise ValueError('ALB verifier did not produce a fresh report')
+        result = json.loads(path.read_text(encoding='utf-8'))
+        if result.get('phase') != 'load-balancers':
+            raise ValueError('Unexpected ALB verifier report')
+        if not failure and result.get('status') == 'PASS':
+            return result
+        if (not failure or failure.returncode != 1 or result.get('status') != 'FAIL'
+                or result.get('retryable') is not True):
+            if failure:
+                raise failure
+            raise ValueError('ALB verifier failed without a retryable readiness result')
+        remaining = deadline - clock()
+        if remaining <= 0:
+            raise TimeoutError('ALB readiness timed out; keep the report and inspect targets/controller before resuming')
+        print('WAIT: ALB provisioning/target readiness; bounded retry (report: ' + str(path) + ')', flush=True)
+        sleep(min(15, remaining))
+
+
 def managed(state_value):
     return [r for r in state_value.get('resources', []) if r.get('mode') == 'managed' and r.get('instances')]
 

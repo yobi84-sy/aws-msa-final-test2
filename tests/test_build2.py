@@ -183,6 +183,7 @@ class StoragePayloadTests(unittest.TestCase):
         saved_paths = []
         listed = [False]
         def fake_aws(service, operation, *args):
+            self.assertEqual(args[args.index('--expected-bucket-owner') + 1], destroy.CONFIG['account'])
             if operation == 'list-object-versions':
                 if listed[0]: return {}
                 listed[0] = True

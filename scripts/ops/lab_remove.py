@@ -7,12 +7,14 @@ removal is performed. Lost state/unknown ownership is a stop condition.
 import argparse
 import json
 from pathlib import Path
+import re
 import shutil
 import sys
 import tempfile
+import time
 import uuid
 
-from lab_common import (CONFIG, ROOT, STATE_BUCKET, STATE_KEYS, Journal, Runner, apply_plan,
+from lab_common import (CONFIG, ROOT, STATE_BUCKET, STATE_KEYS, Journal, Runner, CommandError, apply_plan,
                         check_identity, clear_runtime_secrets, cluster, confirm, connect,
                         load_settings, managed, now, preflight, prepare_secrets, public_ip, save_json, state)
 
@@ -54,6 +56,63 @@ def load_remote_states(runner):
         runner.tf(root, 'init', '-input=false', '-no-color')
         values[root] = state(runner, root) if key in keys else empty_remote_state()
     return values
+
+
+def cloudtrail_bucket_not_empty(error, bucket):
+    """Recognize one exact provider diagnostic, not arbitrary destroy failures."""
+    if (not isinstance(error, CommandError)
+            or error.args_run[1:3] != ['-chdir=terraform', 'apply']):
+        return False
+    text = error.stdout + '\n' + error.stderr
+    diagnostics = re.findall(r'(?m)^Error: (.*?)(?=^Error: |\Z)', text, re.S | re.M)
+    return (len(diagnostics) == 1
+            and re.match(r'deleting S3 Bucket \(' + re.escape(bucket) + r'\):', diagnostics[0]) is not None
+            and 'DeleteBucket' in diagnostics[0] and 'BucketNotEmpty' in diagnostics[0]
+            and re.search(r'with module\.cloudtrail\.aws_s3_bucket\.logs,', diagnostics[0]) is not None)
+
+
+def reclean_cloudtrail(runner, manifest, bucket):
+    # Never widen cleanup to other buckets/resources after a partial destroy.
+    if manifest.get('account') != CONFIG['account'] or manifest.get('cluster') != CONFIG['cluster']:
+        raise ValueError('CloudTrail cleanup manifest identity mismatch')
+    check_identity(runner)
+    resources = managed(state(runner, 'terraform'))
+    if (len(resources) != 1 or resources[0].get('module') != 'module.cloudtrail'
+            or resources[0].get('type') != 'aws_s3_bucket' or resources[0].get('name') != 'logs'
+            or len(resources[0].get('instances', [])) != 1
+            or resources[0]['instances'][0].get('attributes', {}).get('id') != bucket):
+        raise ValueError('CloudTrail retry requires only the exact recorded log bucket remaining in state')
+    location = runner.aws('s3api', 'get-bucket-location', '--bucket', bucket,
+                          '--expected-bucket-owner', CONFIG['account'])
+    if (location.get('LocationConstraint') or 'us-east-1') != CONFIG['region']:
+        raise ValueError('CloudTrail log bucket region mismatch')
+    trail = f"arn:aws:cloudtrail:{CONFIG['region']}:{CONFIG['account']}:trail/{CONFIG['project']}-management-trail"
+    trails = runner.aws('cloudtrail', 'describe-trails')['trailList']
+    if any(t['TrailARN'] == trail for t in trails):
+        runner.aws('cloudtrail', 'stop-logging', '--name', trail, empty=True)
+        if runner.aws('cloudtrail', 'get-trail-status', '--name', trail)['IsLogging']:
+            raise ValueError('CloudTrail still logging; stop before emptying logs')
+    from destroy_lab import clear_bucket
+    clear_bucket(bucket)
+
+
+def destroy_infrastructure(runner, variables, manifest, directory, *, approved=False,
+                           max_attempts=3, sleep=time.sleep):
+    bucket = f"{CONFIG['project'].lower()}-cloudtrail-{CONFIG['account']}-{CONFIG['region']}"
+    if max_attempts not in (1, 2, 3):
+        raise ValueError('CloudTrail destroy attempts must be bounded to 1..3')
+    for attempt in range(1, max_attempts + 1):
+        try:
+            # Every attempt regenerates, inspects and approves its own saved plan.
+            apply_plan(runner, 'terraform', 'destroy-infra', variables, destroy=True,
+                       approved=approved, directory=directory)
+            return
+        except CommandError as error:
+            if attempt == max_attempts or not cloudtrail_bucket_not_empty(error, bucket):
+                raise
+            reclean_cloudtrail(runner, manifest, bucket)
+            print(f'RETRY: exact CloudTrail log bucket refilled; destroy attempt {attempt + 1}/{max_attempts}', flush=True)
+            sleep(10 * attempt)
 
 
 def verify_deleted(runner, manifest, *, include_state=False):
@@ -336,7 +395,7 @@ def remove(runner, journal, directory, approved=False, keep_state=False, setting
                 raise ValueError('An IAM user/role ARN is needed for required destroy inputs; supply -ConfigPath')
             variables = {'eks_admin_principal_arn': arn, 'eks_public_access_cidrs': [public_ip()],
                          'enable_website_dns': False, 'enable_management_dns': False, 'customer_email_enabled': False}
-            apply_plan(runner, 'terraform', 'destroy-infra', variables, destroy=True, approved=approved, directory=directory)
+            destroy_infrastructure(runner, variables, manifest, directory, approved=approved)
     journal.stage('infra', infrastructure)
     from lab_recovery import discard_snapshots
     journal.stage('recovery-snapshots', lambda: discard_snapshots(runner), always=True)

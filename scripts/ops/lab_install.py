@@ -19,7 +19,7 @@ import uuid
 from lab_common import (CONFIG, ROOT, STATE_BUCKET, Journal, Runner, CommandError, APP_NAMES,
                         apply_plan, check_identity, clear_runtime_secrets, cluster, confirm,
                         connect, ensure_revision, infra_variables, k8s_variables, load_settings,
-                        managed, now, preflight, prepare_secrets, public_ip, save_json, state)
+                        managed, now, preflight, prepare_secrets, public_ip, save_json, state, wait_alb)
 
 STAGES = ('ses', 'bootstrap', 'infra', 'connect', 'tools', 'admin', 'images', 'apps', 'dns-mail', 'verify')
 
@@ -278,19 +278,6 @@ def install(runner, settings, journal, directory, approved=False, config_path=No
     print('Initial GitOps revision is pinned. Before future automatic main deployments, have a teammate approve/merge ' + details['releaseUrl'], flush=True)
     print('Then run: .\\Install-Lab.ps1 -Execute -PromoteMain (approval is NOT bypassed).', flush=True)
     print('Confirm the operations SNS email subscription in your inbox; real order-mail delivery remains a functional test.', flush=True)
-
-
-def wait_alb(runner, directory, *, timeout=600, clock=time.monotonic, sleep=time.sleep):
-    deadline = clock() + timeout
-    while True:
-        try:
-            runner.run([sys.executable, 'scripts/ops/verify_lab.py', 'load-balancers', '--report', str(directory / 'alb-check.json')])
-            return
-        except CommandError:
-            if clock() >= deadline:
-                raise TimeoutError('ALB/target health not ready; inspect .lab/runtime/alb-check.json')
-            print('WAIT: ALB targets becoming healthy', flush=True)
-            sleep(15)
 
 
 def promote_main(runner, settings, journal, directory, approved=False, config_path=None):
