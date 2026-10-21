@@ -89,15 +89,18 @@ class PeerReviewTests(unittest.TestCase):
         api = FakeGitHub(); api.files = [{'filename': 'app/msa/member/Dockerfile'}]
         self.assertEqual(policy.evaluate(api, 4, TEAM)[1], 'success')
 
-    def test_check_write_updates_own_context_without_extra_aws_permissions(self):
+    def test_new_evaluation_does_not_update_a_check_in_an_old_suite(self):
         api = FakeGitHub()
         api.checks = [{'id': 7, 'name': 'release-approval', 'app': {'slug': 'github-actions'}}]
         policy.publish_check(api, SHA, 'pending', 'Waiting for teammate')
         endpoint, method, payload = api.writes[0]
-        self.assertEqual((endpoint, method), ('check-runs/7', 'PATCH'))
+        self.assertEqual((endpoint, method), ('check-runs', 'POST'))
         self.assertEqual(payload['status'], 'in_progress')
         self.assertNotIn('conclusion', payload)
-        self.assertNotIn('head_sha', payload)
+        self.assertEqual(payload['head_sha'], SHA)
+        policy.publish_check(api, SHA, 'success', 'Approved by another authorized teammate: peer')
+        self.assertEqual(api.writes[-1][1], 'POST')
+        self.assertEqual(api.writes[-1][2]['conclusion'], 'success')
 
 
 if __name__ == '__main__':
