@@ -21,6 +21,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   evaluate-review-policy:
+    # On pull_request_review, Actions binds this native job to the reviewed
+    # head SHA. An API-created check can land in a superseded CI check suite.
+    name: release-approval
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
     steps:

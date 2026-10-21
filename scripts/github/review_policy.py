@@ -101,9 +101,9 @@ def publish_check(api, sha, conclusion, title):
                'output': {'title': title, 'summary': 'Peer approval is separate from CI execution permission. No AWS operation was performed.'}}
     if conclusion != 'pending':
         payload['conclusion'] = conclusion
-    # A previous run may belong to a superseded Actions check suite. Updating
-    # that check leaves it outside the PR's current rollup. Publish this freshly
-    # evaluated decision in the current invocation; never reuse an old suite.
+    # This API check also covers pull_request_target (whose native job is on
+    # main). On review events, the native release-approval job is authoritative:
+    # GitHub may attach API-created checks to a superseded CI check suite.
     return api.api('check-runs', method='POST', payload=payload)
 
 
@@ -124,6 +124,10 @@ def main():
         raise
     publish_check(api, sha, conclusion, title)
     print(conclusion + ': ' + title)
+    # The native Actions job must never turn green for a pending/failed review.
+    # A submitted/dismissed review runs it again on the reviewed PR head SHA.
+    if conclusion not in ('success', 'neutral'):
+        raise SystemExit(1)
 
 
 if __name__ == '__main__':

@@ -5,6 +5,7 @@ import importlib.util
 import json
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('review_policy', ROOT / 'scripts/github/review_policy.py')
@@ -101,6 +102,21 @@ class PeerReviewTests(unittest.TestCase):
         policy.publish_check(api, SHA, 'success', 'Approved by another authorized teammate: peer')
         self.assertEqual(api.writes[-1][1], 'POST')
         self.assertEqual(api.writes[-1][2]['conclusion'], 'success')
+
+    def test_native_job_fails_closed_until_eligible_review(self):
+        for approved in (False, True):
+            api = FakeGitHub()
+            if approved:
+                api.approve()
+            config = dict(TEAM, repository=api.repo)
+            with patch.object(policy, 'GitHub', return_value=api), patch('sys.argv', ['review_policy.py', '--pr', '4']), patch.object(policy.Path, 'read_text', return_value=json.dumps(config)), patch('builtins.print'):
+                if approved:
+                    policy.main()
+                else:
+                    with self.assertRaises(SystemExit) as error:
+                        policy.main()
+                    self.assertEqual(error.exception.code, 1)
+            self.assertEqual(api.writes[-1][2].get('conclusion'), 'success' if approved else None)
 
 
 if __name__ == '__main__':
