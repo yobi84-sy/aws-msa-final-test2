@@ -230,6 +230,9 @@ class TeardownFlowTests(unittest.TestCase):
             stack.enter_context(patch.object(remove, 'state', side_effect=lambda r, module: state_values[module]))
             stack.enter_context(patch.object(remove, 'verify_deleted', side_effect=deleted))
             stack.enter_context(patch.object(remove, 'clear_state_bucket', side_effect=lambda *a: events.append('state-bucket')))
+            # This orchestration test must never read a real local recovery
+            # checkpoint. Snapshot ownership/deletion has its own fake tests.
+            stack.enter_context(patch('lab_recovery.discard_snapshots', side_effect=lambda *a: events.append('recovery-snapshots')))
             stack.enter_context(patch.object(remove, 'forget_bootstrap', side_effect=lambda *a: events.append('forget-bootstrap')))
             with redirect_stdout(io.StringIO()):
                 with self.assertRaises(RuntimeError):
@@ -242,6 +245,7 @@ class TeardownFlowTests(unittest.TestCase):
             self.assertLess(events.index('workloads'), events.index('monitoring'))
             self.assertLess(events.index('monitoring'), events.index('wait'))
             self.assertLess(events.index('residue'), events.index('state-bucket'))
+            self.assertLess(events.index('recovery-snapshots'), events.index('state-bucket'))
             self.assertEqual(events[-1], 'residue-final')
             self.assertTrue(common.Journal(journal.path, 'remove').data['closed'])
 
