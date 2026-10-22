@@ -154,9 +154,27 @@ def rotate(runner, directory, *, timeout=1200, clock=time.monotonic, sleep=time.
     return {'versionChanged': True, 'allThreeServicesReplaced': True, 'successfulJob': job}
 
 
+def hpa_cpu_percent(hpa, *, current=False):
+    """Read equivalent CPU utilization fields from Kubernetes v1/v2 responses."""
+    section = hpa.get('status' if current else 'spec', {})
+    legacy = 'currentCPUUtilizationPercentage' if current else 'targetCPUUtilizationPercentage'
+    if legacy in section:
+        return section[legacy]
+    metrics = section.get('currentMetrics' if current else 'metrics', [])
+    if len(metrics) != 1 or metrics[0].get('type') != 'Resource':
+        return None
+    resource = metrics[0].get('resource', {})
+    if resource.get('name') != 'cpu':
+        return None
+    value = resource.get('current' if current else 'target', {})
+    if not current and value.get('type') != 'Utilization':
+        return None
+    return value.get('averageUtilization')
+
+
 def scale(runner, *, timeout=900, clock=time.monotonic, sleep=time.sleep, popen=subprocess.Popen):
     hpa = runner.kube('get', 'hpa', 'member-hpa', '-n', 'soldesk')
-    if hpa['spec'].get('minReplicas') != 1 or hpa['spec'].get('maxReplicas') != 3 or hpa['spec'].get('targetCPUUtilizationPercentage') != 60:
+    if hpa['spec'].get('minReplicas') != 1 or hpa['spec'].get('maxReplicas') != 3 or hpa_cpu_percent(hpa) != 60:
         raise ValueError('Unexpected HPA bounds; refuse to alter/test an unknown configuration')
     if hpa.get('status', {}).get('currentReplicas') != 1:
         raise ValueError('Wait until the member HPA is at its normal one-replica baseline')
@@ -177,7 +195,7 @@ def scale(runner, *, timeout=900, clock=time.monotonic, sleep=time.sleep, popen=
             count = hpa.get('status', {}).get('currentReplicas', 0)
             available = deployment.get('status', {}).get('availableReplicas', 0)
             observations.append({'at': now(), 'replicas': count, 'available': available, 'nodes': nodes,
-                                 'cpuPercent': hpa.get('status', {}).get('currentCPUUtilizationPercentage')})
+                                 'cpuPercent': hpa_cpu_percent(hpa, current=True)})
             print(f'HPA: replicas={count}, available={available}, nodes={nodes}', flush=True)
             expanded = expanded or (count >= 2 and available >= count)
             if child.poll() is not None and child.returncode not in (0, 124, 137, 143):
