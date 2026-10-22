@@ -90,12 +90,13 @@ def clear_bucket(bucket):
     check(bucket in BUCKETS, 'bucket is outside exact project data allowlist')
     # Explicitly exclude the protected Terraform state bucket.
     check('tfstate' not in bucket, 'state bucket cannot be emptied here')
+    owner = ('--expected-bucket-owner', CONFIG['account'])
     for attempt in range(6):
-        versions = aws('s3api', 'list-object-versions', '--bucket', bucket)
+        versions = aws('s3api', 'list-object-versions', '--bucket', bucket, *owner)
         objects = [{'Key': o['Key'], 'VersionId': o['VersionId']}
                    for o in versions.get('Versions', []) + versions.get('DeleteMarkers', [])]
         if not objects:
-            current = aws('s3api', 'list-objects-v2', '--bucket', bucket)
+            current = aws('s3api', 'list-objects-v2', '--bucket', bucket, *owner)
             objects = [{'Key': o['Key']} for o in current.get('Contents', [])]
         if not objects:
             # CloudTrail can deliver delayed objects; a later BucketNotEmpty is retried through this same stage.
@@ -106,7 +107,7 @@ def clear_bucket(bucket):
                 request_path = Path(temporary) / 'delete.json'
                 request_path.write_text(json.dumps({'Objects': objects[start:start + 1000], 'Quiet': True}), encoding='utf-8')
                 result = aws('s3api', 'delete-objects', '--bucket', bucket,
-                             '--delete', 'file://' + str(request_path))
+                             '--delete', 'file://' + str(request_path), *owner)
             check(not result.get('Errors'), 'S3 returned per-object deletion failures')
         time.sleep(5)
     raise TimeoutError('bucket is still receiving objects; inspect CloudTrail status, then retry storage stage')

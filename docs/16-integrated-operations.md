@@ -78,6 +78,6 @@ Terraform S3 backend에는 locals를 사용할 수 없어 일부 값이 리터�
 | 메일·중복·실패 | 구매자/관리자 각 도착, 반복 이벤트는 중복 건너뜀, 실패는 재시도/DLQ | Lambda 처리 단계·SES 상태·SQS/DLQ·DynamoDB |
 | 마지막 전체 삭제 | 양쪽 state 비움, 기록한 스냅샷·CodeBuild·소스 S3·기존 자원·state S3 부재 | 소유권이 불명확하면 보존하고 조사 |
 
-코드의 오프라인 검증과 실제 AWS 검증은 별개다. 이번 변경의 실배포 결과는 실행 후 별도로 기록한다. 기존 빌드의 성공 기록을 새 보존·복원 기능의 검증 기록으로 대신하지 않는다.
+2026-10-21에 실제 설치·보존·복원·승인 배포·전체 삭제와 데이터 비교를 수행했다. [단계별 실제 결과](17-validation-20261021.md)에 확인 범위와 재개했던 구간을 구분했다. ALB 생성/대상 준비는 설치·복원에서 최대 10분, 기본 검증에서 최대 5분 기다리며 조회/권한 오류는 즉시 실패한다. CloudTrail 재정리는 정확한 단일 로그 버킷 오류와 계정·state·소유권을 확인한 경우에만 최대 2회 추가 시도한다. 새 재시도 로직 자체의 검증은 오프라인이며, 실제 AWS에 이 변경을 재배포해 시험한 결과로 바꿔 쓰지 않는다.
 
 설정 참고: [CodeBuild VPC](https://docs.aws.amazon.com/codebuild/latest/userguide/vpc-support.html), [SQS 소비 동시 실행](https://docs.aws.amazon.com/lambda/latest/dg/services-sqs-scaling.html).

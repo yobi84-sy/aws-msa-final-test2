@@ -101,6 +101,7 @@ class InstallFlowTests(unittest.TestCase):
         stack.enter_context(patch.object(install, 'connect', side_effect=lambda *args: events.append(('connect', None))))
         stack.enter_context(patch.object(install, 'prepare_secrets', side_effect=lambda *args: events.append(('secrets', None))))
         stack.enter_context(patch.object(install, 'prepare_admin', side_effect=lambda *args: events.append(('admin', None))))
+        stack.enter_context(patch.object(install, 'wait_alb', side_effect=lambda *args: events.append(('alb', None))))
         stack.enter_context(patch.object(install, 'wait_image_release', side_effect=images))
         stack.enter_context(patch.object(install, 'apply_plan', side_effect=apply))
         return stack, runner, journal, events
