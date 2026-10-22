@@ -101,15 +101,27 @@ def current_version(runner, secret_arn):
     return current[0]
 
 
-def service_uids(runner):
+def service_uids(runner, *, allow_unready=False):
     pods = runner.kube('get', 'pods', '-n', CONFIG['namespace'], '-l', 'app in (member,product,ordering)')['items']
     result = {}
     for app in ('member', 'product', 'ordering'):
         result[app] = [p['metadata']['uid'] for p in pods if p['metadata'].get('labels', {}).get('app') == app
                        and any(c.get('type') == 'Ready' and c.get('status') == 'True' for c in p.get('status', {}).get('conditions', []))]
-        if not result[app]:
+        if not result[app] and not allow_unready:
             raise ValueError('No ready Pod for ' + app)
     return result
+
+
+def wait_rotated_services(runner, before, *, timeout=900, clock=time.monotonic, sleep=time.sleep):
+    deadline = clock() + timeout
+    while True:
+        after = service_uids(runner, allow_unready=True)
+        if all(after[app] and not set(after[app]) & set(before[app]) for app in before):
+            return after
+        if clock() >= deadline:
+            raise TimeoutError('Automatic credential replacement did not finish; resume the same rotation checkpoint')
+        print('WAIT: all three credential rollouts / old Pod termination', flush=True)
+        sleep(min(10, deadline - clock()))
 
 
 def rotate(runner, directory, *, timeout=1200, clock=time.monotonic, sleep=time.sleep):
@@ -144,10 +156,13 @@ def rotate(runner, directory, *, timeout=1200, clock=time.monotonic, sleep=time.
             raise TimeoutError('RDS rotation not complete; same command resumes observation without a second rotation request')
         print('WAIT: RDS managed password rotation', flush=True)
         sleep(15)
-    job = credential_ready(runner, after=datetime.fromisoformat(details['startedAt']), timeout=900)
-    after = service_uids(runner)
-    if any(set(after[app]) & set(details['beforePods'][app]) for app in after):
-        raise ValueError('A service still has its pre-rotation Pod; automatic replacement not proven')
+    after = wait_rotated_services(runner, details['beforePods'], timeout=max(0, deadline - clock()),
+                                  clock=clock, sleep=sleep)
+    # A Job during the RDS rotation may have validated the OLD Secret. Require
+    # another complete DB-readiness pass started after replacement was observed.
+    details.setdefault('replacementObservedAt', now())
+    journal.save()
+    job = credential_ready(runner, after=datetime.fromisoformat(details['replacementObservedAt']), timeout=900)
     details.update(afterVersion=version, afterPods=after, successfulJob=job, completedAt=now())
     journal.data['status'] = 'rotation-complete-awaiting-service-verification'
     journal.save()

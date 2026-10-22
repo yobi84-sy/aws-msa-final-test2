@@ -1,12 +1,13 @@
-"""HPA wire-version compatibility; no Kubernetes connection or CPU load."""
+"""HPA wire versions and rotation observation; no live Kubernetes or CPU load."""
 import copy
 from contextlib import redirect_stdout
 import io
 from pathlib import Path
 import sys
+import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts/ops'))
 import lab_verify as verify
@@ -76,6 +77,57 @@ class HpaVersionTests(unittest.TestCase):
         self.assertEqual([o['cpuPercent'] for o in result['observations']], [150, 1])
         start.assert_called_once()
         self.assertEqual(start.call_args.args[0][-3:], ['180', 'sha256sum', '/dev/zero'])
+
+
+class RotationReadinessTests(unittest.TestCase):
+    def test_final_job_must_start_after_replacement_was_observed(self):
+        before = {name: ['old-' + name] for name in ('member', 'product', 'ordering')}
+        after = {name: ['new-' + name] for name in before}
+        observed = '2026-10-22T01:10:00+00:00'
+        with tempfile.TemporaryDirectory() as temporary, patch.object(verify, 'ROOT', Path(temporary)):
+            journal = verify.Journal(Path(temporary) / '.lab/rotation-state.json', 'rotation')
+            journal.data['details'] = {'requestAccepted': True, 'beforePods': before,
+                                       'startedAt': '2026-10-22T01:00:00+00:00',
+                                       'secretArn': 'unit', 'beforeVersion': 'old'}
+            journal.save()
+            runner = SimpleNamespace(aws=Mock(return_value={'DBInstances': [{
+                'DBInstanceStatus': 'available', 'MasterUserSecret': {'SecretStatus': 'active'}}]}))
+            with patch.object(verify, 'current_version', return_value='new'), \
+                 patch.object(verify, 'wait_rotated_services', return_value=after), \
+                 patch.object(verify, 'credential_ready', return_value='new-job') as job, \
+                 patch.object(verify, 'now', return_value=observed):
+                verify.rotate(runner, Path(temporary))
+            self.assertEqual(job.call_args.kwargs['after'].isoformat(), observed)
+            self.assertEqual(runner.aws.call_count, 1)  # Resume never requests another rotation.
+
+    def test_old_or_temporarily_unready_pods_are_waited_for(self):
+        before = {name: ['old-' + name] for name in ('member', 'product', 'ordering')}
+        after = {name: ['new-' + name] for name in before}
+        empty = {name: [] for name in before}
+        tick = [0]
+        def sleep(seconds): tick[0] += seconds
+        with patch.object(verify, 'service_uids', side_effect=[before, empty, after]) as read:
+            with redirect_stdout(io.StringIO()):
+                result = verify.wait_rotated_services(None, before, clock=lambda: tick[0], sleep=sleep)
+        self.assertEqual(result, after)
+        self.assertEqual(tick[0], 20)
+        self.assertTrue(all(call.kwargs == {'allow_unready': True} for call in read.call_args_list))
+
+    def test_stuck_rollout_has_a_bounded_deadline(self):
+        before = {'member': ['old'], 'product': ['old'], 'ordering': ['old']}
+        tick = [0]
+        def sleep(seconds): tick[0] += seconds
+        with patch.object(verify, 'service_uids', return_value=before):
+            with redirect_stdout(io.StringIO()), self.assertRaises(TimeoutError):
+                verify.wait_rotated_services(None, before, timeout=15, clock=lambda: tick[0], sleep=sleep)
+        self.assertEqual(tick[0], 15)
+
+    def test_permission_error_is_not_a_readiness_retry(self):
+        with patch.object(verify, 'service_uids', side_effect=RuntimeError('denied')):
+            sleep = Mock()
+            with self.assertRaisesRegex(RuntimeError, 'denied'):
+                verify.wait_rotated_services(None, {'member': ['old']}, sleep=sleep)
+            sleep.assert_not_called()
 
 
 if __name__ == '__main__':
