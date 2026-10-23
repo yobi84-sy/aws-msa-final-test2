@@ -213,6 +213,10 @@ class TeardownFlowTests(unittest.TestCase):
             runner = SimpleNamespace(root=root, env={}, run=run, aws=aws)
             def apply(runner, module, label, *args, **kwargs):
                 events.append(label)
+                if label == 'destroy-infra':
+                    # A clean process drops TF_VAR_* overrides. Destroy still
+                    # needs Terraform's required input, even to delete SNS.
+                    self.assertEqual(args[0].get('alert_email'), SETTINGS['alertEmail'])
                 if label == 'destroy-infra' and fail_once[0]:
                     fail_once[0] = False
                     raise RuntimeError('simulated late CloudTrail BucketNotEmpty')

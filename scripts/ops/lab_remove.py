@@ -389,11 +389,14 @@ def remove(runner, journal, directory, approved=False, keep_state=False, setting
 
     def infrastructure():
         if managed(values['terraform']):
+            if not settings:
+                raise ValueError('Saved lab config is required for Terraform destroy inputs; supply -ConfigPath')
             identity = check_identity(runner)
             arn = settings['adminArn'] if settings else identity['Arn']
             if ':iam::' not in arn:
                 raise ValueError('An IAM user/role ARN is needed for required destroy inputs; supply -ConfigPath')
             variables = {'eks_admin_principal_arn': arn, 'eks_public_access_cidrs': [public_ip()],
+                         'alert_email': settings['alertEmail'],
                          'enable_website_dns': False, 'enable_management_dns': False, 'customer_email_enabled': False}
             destroy_infrastructure(runner, variables, manifest, directory, approved=approved)
     journal.stage('infra', infrastructure)
