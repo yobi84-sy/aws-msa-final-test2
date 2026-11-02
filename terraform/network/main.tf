@@ -144,22 +144,37 @@ resource "aws_route_table_association" "db" {
 
 # NAT Gateway에서 사용할 고정 공인 IP
 resource "aws_eip" "nat" {
+  count  = length(var.availability_zones)
   domain = "vpc"
 
   tags = {
-    Name = "${var.vpc_name}-nat-eip"
+    Name = "${var.vpc_name}-nat-eip-${count.index + 1}"
   }
 }
 
-# 첫 번째 퍼블릭 서브넷에 NAT Gateway 만들기
+# 각 AZ의 퍼블릭 서브넷에 NAT를 배치한다. 임의 NAT 선택/자동 장애 전환이 아니다.
 resource "aws_nat_gateway" "main" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public[0].id
+  count         = length(var.availability_zones)
+  allocation_id = aws_eip.nat[count.index].id
+  subnet_id     = aws_subnet.public[count.index].id
 
   connectivity_type = "public"
 
   tags = {
-    Name = "${var.vpc_name}-nat"
+    Name = "${var.vpc_name}-nat-${count.index + 1}"
+  }
+
+  lifecycle {
+    precondition {
+      condition = (
+        length(var.availability_zones) == 2 &&
+        length(distinct(var.availability_zones)) == 2 &&
+        length(var.public_subnet_cidrs) == 2 &&
+        length(var.private_subnet_cidrs) == 2 &&
+        length(var.db_subnet_cidrs) == 2
+      )
+      error_message = "This lab requires two distinct AZs and two public/private/DB subnets in matching AZ order."
+    }
   }
 
   # IGW와 퍼블릭 경로가 준비된 뒤 생성
@@ -175,5 +190,17 @@ resource "aws_route" "private_nat" {
 
   route_table_id         = aws_route_table.private[count.index].id
   destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.main.id
+  nat_gateway_id         = aws_nat_gateway.main[count.index].id
+}
+
+# Retain the existing AZ-a resources if an older state is used. Fresh installs
+# create both indexed resources; they are not a migration screenshot.
+moved {
+  from = aws_eip.nat
+  to   = aws_eip.nat[0]
+}
+
+moved {
+  from = aws_nat_gateway.main
+  to   = aws_nat_gateway.main[0]
 }

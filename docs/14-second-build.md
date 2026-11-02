@@ -24,7 +24,7 @@
 
 새 AWS 서비스는 추가하지 않았습니다. Terraform `terraform_data`는 AWS 리소스가 아니라 준비 확인 결과를 추적하는 state 항목입니다. Kubernetes CronJob·ConfigMap·최소 RBAC는 기존 노드에서 실행됩니다.
 
-**한계도 유지됩니다.** RDS·NAT 단일 장애 지점, c AZ에 고정된 모니터링 EBS는 그대로입니다. medium은 메모리 여유를 늘리지만 t3의 지속 CPU 부하/크레딧 문제까지 없애지는 않습니다. 노드·Pod·EBS 비용은 실제 실행 수와 시간에 따라 발생합니다.
+**이전 실행의 한계:** 당시에는 RDS Single-AZ·NAT 1개였습니다. 신규 구축 준비안은 AZ별 NAT와 RDS Multi-AZ로 변경했으며 AWS 실측은 아직입니다([촬영 계획](19-ha-release-evidence.md)). c AZ에 고정된 모니터링 EBS와 t3의 지속 CPU 부하/크레딧 제약은 남습니다. 실제 자원 수와 시간에 따라 비용이 발생합니다.
 
 ## 0. 내려받기와 준비
 
@@ -69,7 +69,7 @@ aws eks update-kubeconfig --name Final-eks --region ap-northeast-2 --profile eks
 kubectl get nodes -L final-node-pool,node.kubernetes.io/instance-type
 ```
 
-plan 파일은 민감할 수 있어 공유하지 않습니다. 성공 문구뿐 아니라 실제 API 조회가 PASS여야 다음 단계로 갑니다. Single-AZ DB의 가용성 한계는 그대로예요.
+plan 파일은 민감할 수 있어 공유하지 않습니다. 성공 문구뿐 아니라 실제 API 조회가 PASS여야 다음 단계로 갑니다. 신규 준비안의 infra 검사는 NAT 2개·AZ별 경로와 RDS Multi-AZ의 대기 AZ도 확인합니다.
 
 ## 2. 이미지와 도구 준비 → 앱 활성화
 
