@@ -17,18 +17,14 @@
       "digest": "sha256:17a95e5c7e7f5e0ed7a31b1bb7f3d88293b58b5fa4f9f279809047c0e2694cb8"
     },
     "frontend": {
-      "source": "a784c0a335a8e2072917ff9ae136d8493217c6f2",
-      "digest": "sha256:b2ee7fc76d872058c7d5b0003798a80a31b5008931d8988411d35f0ec81f4de9"
+      "source": "58cab23d250141bf41b9e66cbb89632166028aa4",
+      "digest": "sha256:c83173f52f326548e7db1dfb60b01585b0718abce3536820fb557ef6e7dd84c1"
     }
   },
-  "intent": "rollback",
+  "intent": "release",
   "updatedServices": [
-    "member",
-    "product",
-    "ordering",
-    "apigateway",
     "frontend"
   ],
-  "runId": "41447898681",
+  "runId": "41453037661",
   "rollbackFrom": "eed1154b290cdcf348f899628a02c11e4f139067"
 }
