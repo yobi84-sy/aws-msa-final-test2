@@ -220,7 +220,7 @@ async function loadProductDetail() {
     return;
   }
 
-  const productId = getQueryParam('productId');
+  const productId = getQueryParam('id');
   if (!productId) {
     target.innerHTML = '<div class="empty">상품 정보가 없습니다.</div>';
     return;
