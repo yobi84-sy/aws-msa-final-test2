@@ -72,8 +72,8 @@ resource "aws_db_instance" "main" {
   db_subnet_group_name   = aws_db_subnet_group.main.name
   vpc_security_group_ids = [aws_security_group.rds.id]
 
-  # 실습용 Single-AZ, 인터넷에 직접 공개하지 않기
-  multi_az            = false
+  # Multi-AZ DB instance: primary + synchronous standby (not a read replica).
+  multi_az            = true
   publicly_accessible = false
 
   # 자동 백업을 하루 보관

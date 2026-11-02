@@ -71,6 +71,7 @@ jobs:
             terraform -chdir="$root" validate
           done
           terraform -chdir=terraform-k8s test -no-color
+          terraform -chdir=terraform test -no-color
       - name: Render GitOps manifests
         run: kubectl kustomize app/msa > /tmp/apps.yaml
       - uses: azure/setup-helm@v4

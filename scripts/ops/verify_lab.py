@@ -60,6 +60,33 @@ def verify_volumes(items):
     check(all(v.get('status', {}).get('phase') == 'Bound' for v in items), 'monitoring PVC not Bound')
 
 
+def verify_ha_network(subnets, nats, tables, db):
+    """Require two AZ-local outbound paths, plus an available Multi-AZ standby."""
+    check(db.get('MultiAZ') is True, 'RDS Multi-AZ disabled')
+    primary, standby = db.get('AvailabilityZone'), db.get('SecondaryAvailabilityZone')
+    check(bool(primary) and bool(standby) and primary != standby, 'RDS standby AZ not ready')
+    by_subnet = {s['SubnetId']: s for s in subnets}
+    active = [n for n in nats if n['State'] != 'deleted']
+    check(len(active) == 2 and all(n['State'] == 'available' for n in active), 'expected two available NAT gateways')
+    nat_az = {n['NatGatewayId']: by_subnet[n['SubnetId']]['AvailabilityZone'] for n in active}
+    check(len(set(nat_az.values())) == 2, 'NAT gateways must occupy two AZs')
+    check({primary, standby} == set(nat_az.values()), 'RDS/NAT AZ mismatch')
+    paths = []
+    for table in tables:
+        defaults = [r for r in table.get('Routes', []) if r.get('DestinationCidrBlock') == '0.0.0.0/0' and r.get('NatGatewayId')]
+        for association in table.get('Associations', []):
+            sid = association.get('SubnetId')
+            subnet = by_subnet.get(sid, {})
+            if subnet.get('Tags') and any(t['Key'] == 'kubernetes.io/role/internal-elb' and t['Value'] == '1' for t in subnet['Tags']):
+                check(len(defaults) == 1, 'app subnet requires exactly one NAT default route')
+                route = defaults[0]
+                check(route.get('State') == 'active', 'NAT route not active')
+                check(nat_az.get(route['NatGatewayId']) == subnet['AvailabilityZone'], 'app route crosses AZ or references wrong NAT')
+                paths.append({'az': subnet['AvailabilityZone'], 'subnet': sid, 'nat': route['NatGatewayId'], 'routeTable': table['RouteTableId']})
+    check(len(paths) == 2 and len({p['az'] for p in paths}) == 2, 'expected two app subnet routes in distinct AZs')
+    return {'natPaths': paths, 'rdsMultiAZ': True, 'primaryAZ': primary, 'standbyAZ': standby}
+
+
 def infra():
     cluster = aws('eks', 'describe-cluster', '--name', CONFIG['cluster'])['cluster']
     check(cluster['status'] == 'ACTIVE', 'EKS not ACTIVE')
@@ -78,8 +105,13 @@ def infra():
     check(db['DBInstanceStatus'] == 'available' and not db['PubliclyAccessible'] and db['StorageEncrypted'], 'RDS unavailable/public/unencrypted')
     check(db['DBSubnetGroup']['VpcId'] == net['vpcId'], 'RDS and EKS VPC mismatch')
     check(db['BackupRetentionPeriod'] >= 1, 'RDS backup retention missing')
+    vpc_filter = 'Name=vpc-id,Values=' + net['vpcId']
+    topology = verify_ha_network(
+        aws('ec2', 'describe-subnets', '--filters', vpc_filter)['Subnets'],
+        aws('ec2', 'describe-nat-gateways', '--filter', vpc_filter)['NatGateways'],
+        aws('ec2', 'describe-route-tables', '--filters', vpc_filter)['RouteTables'], db)
     return {'vpc': net['vpcId'], 'nodeBounds': 'a=1..3 c=2..3', 'database': 'private, encrypted, available',
-            'manualFollowUp': 'Subnet routes / SG rules: see docs/14-second-build.md; this gate does not prove all network paths'}
+            **topology, 'manualFollowUp': 'AZ-local routes and RDS MultiAZ observed; failover and all SG paths are not proven by this gate'}
 
 
 def tools():
