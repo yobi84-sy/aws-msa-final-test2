@@ -125,9 +125,9 @@
 <polyline points="650,1795 650,1770 980,1770 980,1795" fill="none" stroke="#2474ba" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a2474ba)"/>
 <polyline points="980,1770 1310,1770 1310,1795" fill="none" stroke="#2474ba" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a2474ba)"/>
 <polyline points="1310,1770 1650,1770 1650,1795" fill="none" stroke="#2474ba" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a2474ba)"/>
-<polyline points="1650,1850 1650,1880 1310,1880 1310,1850" fill="none" stroke="#c6771e" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ac6771e)"/>
-<polyline points="1650,1880 1650,1900 980,1900 980,1850" fill="none" stroke="#c6771e" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#ac6771e)"/>
-<text x="175" y="1887" font-size="22" fill="#94611d" font-weight="400" text-anchor="start">Ordering → 재고 예약 / 회원 이메일 조회</text>
+<polyline points="1650,1850 1650,1880 1310,1880 1310,1850" fill="none" stroke="#2474ba" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a2474ba)"/>
+<polyline points="1650,1880 1650,1900 980,1900 980,1850" fill="none" stroke="#2474ba" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a2474ba)"/>
+<text x="175" y="1887" font-size="22" fill="#2474ba" font-weight="400" text-anchor="start">Ordering → 재고 예약 / 회원 이메일 조회</text>
 <text x="175" y="1930" font-size="23" fill="#344d68" font-weight="400" text-anchor="start">Frontend는 노드 기준 분산 · 백엔드 기본 1개 · 실제 파드의 AZ는 스케줄링 결과에 따름</text>
 <text x="175" y="1965" font-size="23" fill="#344d68" font-weight="400" text-anchor="start">ClusterIP 내부 통신 · 서비스 간 X-Internal-Token · 현재 배포에 NetworkPolicy / mTLS 없음</text>
 <polyline points="995,1380 995,1665 470,1665 470,1685" fill="none" stroke="#2474ba" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#a2474ba)"/>
