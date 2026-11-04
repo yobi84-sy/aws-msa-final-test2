@@ -55,6 +55,11 @@ def routes(ec2, cfg):
     result = ec2.describe_route_tables(RouteTableIds=sorted(expected))['RouteTables']
     if {t['RouteTableId'] for t in result} != expected or any(t['VpcId'] != cfg['vpc'] for t in result):
         raise ValueError('Route table / VPC guard failed')
+    subnets = {z[role + '_route']: z['probes'][role]['subnet']
+               for z in cfg['zones'].values() for role in ('app', 'health')}
+    if any({a['SubnetId'] for a in t.get('Associations', []) if a.get('SubnetId')} != {subnets[t['RouteTableId']]}
+           for t in result):
+        raise ValueError('Route association drift; refuse writes to a reassigned/shared table')
     return {t['RouteTableId']: next((r.get('NatGatewayId') for r in t['Routes']
                                     if r.get('DestinationCidrBlock') == '0.0.0.0/0'), None) for t in result}
 

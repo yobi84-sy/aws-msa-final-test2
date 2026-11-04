@@ -111,9 +111,11 @@ class Table:
 class EC2:
     def __init__(self, cfg):
         self.cfg = cfg; self.paths = {z[k]: z['nat']['id'] for z in cfg['zones'].values() for k in ('app_route', 'health_route')}
-        self.writes = []; self.failed = {'na'}; self.available = True; self.bad_probe = False; self.bad_vpc = False
+        self.writes = []; self.failed = {'na'}; self.available = True; self.bad_probe = False; self.bad_vpc = False; self.bad_association = False
     def describe_route_tables(self, **kw):
+        subnets = {z[role + '_route']: z['probes'][role]['subnet'] for z in self.cfg['zones'].values() for role in ('app', 'health')}
         return {'RouteTables': [{'RouteTableId': r, 'VpcId': 'other' if self.bad_vpc else self.cfg['vpc'],
+            'Associations': [{'SubnetId': 'unrelated-subnet' if self.bad_association else subnets[r]}],
             'Routes': [{'DestinationCidrBlock': '0.0.0.0/0', 'NatGatewayId': self.paths[r]}]} for r in kw['RouteTableIds']]}
     def describe_instances(self, **kw):
         return {'Reservations': [{'Instances': [{'InstanceId': p['instance'], 'SubnetId': 'wrong' if self.bad_probe else p['subnet'],
@@ -175,11 +177,12 @@ class ControllerTests(unittest.TestCase):
         result = self.run_at(1200, sampler=lambda *_: self.fail('paused must not probe'))
         self.assertEqual(result['event'], 'PAUSED'); self.assertFalse(self.table.writes)
     def test_native_health_drift_or_unowned_probe_or_vpc_refuses_changes(self):
-        for fault in ('health', 'probe', 'vpc'):
+        for fault in ('health', 'probe', 'vpc', 'association'):
             self.setUp()
             if fault == 'health': self.ec2.paths['health-rt-a'] = 'nc'
             if fault == 'probe': self.ec2.bad_probe = True
             if fault == 'vpc': self.ec2.bad_vpc = True
+            if fault == 'association': self.ec2.bad_association = True
             with self.assertRaises(ValueError): self.run_at(1200)
             self.assertFalse(self.ec2.writes)
     def test_target_must_be_available(self):
