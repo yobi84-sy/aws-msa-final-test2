@@ -87,6 +87,14 @@
     "source": "AWS Architecture Icons / 2026-07-31",
     "archivePath": "Architecture-Service-Icons_07312026/Arch_Networking-Content-Delivery/64/Arch_Amazon-Virtual-Private-Cloud_64.svg"
   },
+  "ssm": {
+    "source": "AWS Architecture Icons / 2026-07-31",
+    "archivePath": "Architecture-Service-Icons_07312026/Arch_Management-Tools/64/Arch_AWS-Systems-Manager_64.svg"
+  },
+  "eventbridge": {
+    "source": "AWS Architecture Icons / 2026-07-31",
+    "archivePath": "Architecture-Service-Icons_07312026/Arch_Application-Integration/64/Arch_Amazon-EventBridge_64.svg"
+  },
   "docker": {
     "source": "https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/docker.svg"
   },

@@ -14,7 +14,7 @@ Set-ExecutionPolicy -Scope Process RemoteSigned
 |---|---|
 | `Install-Lab.ps1` | 설정 입력 → state → AWS 기반 → EKS 도구 → 관리자 → 검증한 이미지 → 앱 → DNS·메일 → 기본 검증 |
 | `Verify-Lab.ps1` | 기본은 조회만. 비밀번호 회전·CPU 부하 시험은 별도 옵션과 영향 승인 필요 |
-| `Remove-Lab.ps1` | 앱 → ALB·EBS → 도구 → AWS 기반 → 잔여 확인 → state 버킷까지 정리 |
+| `Remove-Lab.ps1` | 게시·NAT 제어기 정지 → 앱 → ALB·EBS → 도구 → AWS 기반 → 잔여 확인 → state 버킷까지 정리 |
 
 **현재 출발점은 main입니다.** 2026-10-21 설치·보존·복원·배포·전체 삭제 기록과 이후 10월 전체 실행, 11월 2일 NAT 2개·RDS Multi-AZ 구축·배포 시연을 구분합니다. 이전 실행에는 ALB 준비·CloudTrail 지연 로그에 따른 재개와 오류 보완이 있었습니다. 이후 실제 실행 성공이 모든 자동 재시도 분기를 장애 주입으로 재검증했다는 뜻은 아닙니다. [최신 검증 범위](21-current-validation.md) · [10월 21일 원래 기록](17-validation-20261021.md)
 
@@ -49,7 +49,7 @@ AWS는 계정 `021158485482`, profile `eks-user`, 서울 리전으로 제한합�
 .\Install-Lab.ps1 -Execute -ApprovePlans
 ```
 
-EKS·t3.medium 시작 3대/최대 6대·RDS·NAT·저장소 비용이 발생합니다. AWS 무료 크레딧 여부와는 별개로 과금 리소스가 실제 생성됩니다. 운영 알림 SNS 구독 메일의 확인 링크도 직접 눌러야 합니다.
+EKS·t3.medium 시작 3대/최대 6대·RDS·NAT·저장소 비용이 발생합니다. NAT 자동 우회는 기본 활성화이며 별도 t3.nano 검사기 4대와 SSM Endpoint 등 추가 비용이 있습니다. [NAT 통합 범위](22-nat-autofailover.md)를 확인하세요. AWS 무료 크레딧 여부와는 별개로 과금 리소스가 실제 생성됩니다. 운영 알림 SNS 구독 메일의 확인 링크도 직접 눌러야 합니다.
 
 ### 최초 설치와 이후 승인 배포의 차이
 
@@ -83,6 +83,7 @@ EKS·t3.medium 시작 3대/최대 6대·RDS·NAT·저장소 비용이 발생합�
 현재 EKS의 허용 IP 안에서 조회합니다. 검증 명령이 임의로 API 접근 범위를 넓히지는 않습니다. 다음 항목을 확인하고 `.lab/runtime/verification.json`에 결과를 저장합니다.
 
 - 노드 Ready·medium·AZ별 범위, RDS 비공개·암호화·available
+- NAT 제어기 예약·최근 관찰·외부 IP와 실제 라우트 일치. 정상 우회도 최신 근거가 있어야 통과
 - 모니터링 PVC Bound, ESO Ready
 - 공유 ALB 한 개와 모든 대상 그룹의 healthy
 - Argo 실제 revision, 다섯 앱 이미지·준비 복제 수

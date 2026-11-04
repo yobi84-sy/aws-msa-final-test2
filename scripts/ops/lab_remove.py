@@ -18,7 +18,7 @@ from lab_common import (CONFIG, ROOT, STATE_BUCKET, STATE_KEYS, Journal, Runner,
                         check_identity, clear_runtime_secrets, cluster, confirm, connect,
                         load_settings, managed, now, preflight, prepare_secrets, public_ip, save_json, state)
 
-STAGES = ('pause-publishing', 'capture', 'workloads', 'monitoring', 'wait-alb-ebs', 'storage', 'tools', 'infra', 'residue', 'state-bucket')
+STAGES = ('pause-publishing', 'pause-nat-controller', 'capture', 'workloads', 'monitoring', 'wait-alb-ebs', 'storage', 'tools', 'infra', 'residue', 'state-bucket')
 
 
 def pause_publishing(runner):
@@ -179,6 +179,9 @@ def verify_deleted(runner, manifest, *, include_state=False):
     roles = runner.aws('iam', 'list-roles')['Roles']
     if any(r['RoleName'].startswith('Final-') for r in roles):
         remaining['iamRoles'] = [r['RoleName'] for r in roles if r['RoleName'].startswith('Final-')]
+    profiles = runner.aws('iam', 'list-instance-profiles')['InstanceProfiles']
+    if any(p['InstanceProfileName'] == 'Final-nat-autofailover-probe' for p in profiles):
+        remaining['natInstanceProfile'] = ['Final-nat-autofailover-probe']
     policies = runner.aws('iam', 'list-policies', '--scope', 'Local')['Policies']
     if any(p['PolicyName'].startswith('Final-') for p in policies):
         remaining['iamPolicies'] = [p['PolicyName'] for p in policies if p['PolicyName'].startswith('Final-')]
@@ -186,8 +189,12 @@ def verify_deleted(runner, manifest, *, include_state=False):
     if any(any(t['Key'] == 'Project' and t['Value'] == 'Final' for t in a.get('Tags', [])) for a in addresses):
         remaining['eip'] = [a['AllocationId'] for a in addresses if any(t['Key'] == 'Project' and t['Value'] == 'Final' for t in a.get('Tags', []))]
     functions = runner.aws('lambda', 'list-functions')['Functions']
-    if any(f['FunctionName'] == 'Final-order-email' for f in functions):
-        remaining['lambda'] = ['Final-order-email']
+    owned_functions = [f['FunctionName'] for f in functions if f['FunctionName'] in {'Final-order-email', 'Final-nat-autofailover'}]
+    if owned_functions:
+        remaining['lambda'] = owned_functions
+    nat_rules = runner.aws('events', 'list-rules', '--name-prefix', 'Final-nat-autofailover-every-minute')['Rules']
+    if any(r['Name'] == 'Final-nat-autofailover-every-minute' for r in nat_rules):
+        remaining['natSchedule'] = ['Final-nat-autofailover-every-minute']
     # AWS CLI emits no JSON at all for an empty SQS ListQueues response.
     # Project an explicit object so an empty successful inventory is distinct
     # from AccessDenied/transport errors (which Runner still rejects).
@@ -198,8 +205,9 @@ def verify_deleted(runner, manifest, *, include_state=False):
     topics = [t['TopicArn'] for t in runner.aws('sns', 'list-topics')['Topics'] if ':Final-' in t['TopicArn']]
     if topics:
         remaining['sns'] = topics
-    if 'Final-order-email-dedup' in runner.aws('dynamodb', 'list-tables')['TableNames']:
-        remaining['dynamodb'] = ['Final-order-email-dedup']
+    owned_tables = {'Final-order-email-dedup', 'Final-nat-autofailover-state'} & set(runner.aws('dynamodb', 'list-tables')['TableNames'])
+    if owned_tables:
+        remaining['dynamodb'] = sorted(owned_tables)
     trails = [t['Name'] for t in runner.aws('cloudtrail', 'describe-trails')['trailList'] if t['Name'].startswith('Final-')]
     if trails:
         remaining['cloudtrail'] = trails
@@ -221,7 +229,7 @@ def verify_deleted(runner, manifest, *, include_state=False):
     builds = runner.aws('codebuild', 'list-projects')['projects']
     if CONFIG['verifyProject'] in builds:
         remaining['codebuild'] = [CONFIG['verifyProject']]
-    for prefix in ('/aws/eks/Final-eks/', '/aws/lambda/Final-order-email', '/aws/codebuild/' + CONFIG['verifyProject']):
+    for prefix in ('/aws/eks/Final-eks/', '/aws/lambda/Final-order-email', '/aws/lambda/Final-nat-autofailover', '/aws/codebuild/' + CONFIG['verifyProject']):
         logs = runner.aws('logs', 'describe-log-groups', '--log-group-name-prefix', prefix)['logGroups']
         if logs:
             remaining['logs:' + prefix] = [l['logGroupName'] for l in logs]
@@ -340,6 +348,8 @@ def remove(runner, journal, directory, approved=False, keep_state=False, setting
         details['owned'] = owned
     journal.save()
     capture_path = directory / 'destroy-manifest.json'
+    from nat_failover import quiesce as quiesce_nat
+    journal.stage('pause-nat-controller', lambda: quiesce_nat(runner, values['terraform']), always=True)
     helper = [sys.executable, 'scripts/ops/destroy_lab.py']
 
     if live and managed(values['terraform-k8s']):

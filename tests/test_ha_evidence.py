@@ -53,6 +53,14 @@ class HaTests(unittest.TestCase):
         self.db['SecondaryAvailabilityZone'] = 'a'
         with self.assertRaises(ValueError): self.verify()
 
+    def test_cross_az_requires_separately_confirmed_matching_bypass(self):
+        self.tables[0]['Routes'][0]['NatGatewayId'] = 'nat-c'
+        result = verify_ha_network(self.subnets, self.nats, self.tables, self.db,
+                                   verified_bypasses={'rt-a': 'nat-c'})
+        self.assertEqual(result['natPaths'][0]['mode'], 'verified-bypass')
+        with self.assertRaises(ValueError):
+            verify_ha_network(self.subnets, self.nats, self.tables, self.db, verified_bypasses={'rt-a': 'nat-a'})
+
 
 @unittest.skipUnless(shutil.which('node'), 'Node required for browser-navigation contract rehearsal')
 class DemoTests(unittest.TestCase):

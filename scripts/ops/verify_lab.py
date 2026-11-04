@@ -60,8 +60,9 @@ def verify_volumes(items):
     check(all(v.get('status', {}).get('phase') == 'Bound' for v in items), 'monitoring PVC not Bound')
 
 
-def verify_ha_network(subnets, nats, tables, db):
-    """Require two AZ-local outbound paths, plus an available Multi-AZ standby."""
+def verify_ha_network(subnets, nats, tables, db, *, verified_bypasses=None):
+    """Require native paths, or a separately confirmed fresh controller bypass."""
+    verified_bypasses = verified_bypasses or {}
     check(db.get('MultiAZ') is True, 'RDS Multi-AZ disabled')
     primary, standby = db.get('AvailabilityZone'), db.get('SecondaryAvailabilityZone')
     check(bool(primary) and bool(standby) and primary != standby, 'RDS standby AZ not ready')
@@ -81,8 +82,11 @@ def verify_ha_network(subnets, nats, tables, db):
                 check(len(defaults) == 1, 'app subnet requires exactly one NAT default route')
                 route = defaults[0]
                 check(route.get('State') == 'active', 'NAT route not active')
-                check(nat_az.get(route['NatGatewayId']) == subnet['AvailabilityZone'], 'app route crosses AZ or references wrong NAT')
-                paths.append({'az': subnet['AvailabilityZone'], 'subnet': sid, 'nat': route['NatGatewayId'], 'routeTable': table['RouteTableId']})
+                native = nat_az.get(route['NatGatewayId']) == subnet['AvailabilityZone']
+                confirmed = (route['NatGatewayId'] in nat_az and verified_bypasses.get(table['RouteTableId']) == route['NatGatewayId'])
+                check(native or confirmed, 'app route crosses AZ without fresh verified bypass or references wrong NAT')
+                paths.append({'az': subnet['AvailabilityZone'], 'subnet': sid, 'nat': route['NatGatewayId'], 'routeTable': table['RouteTableId'],
+                              'mode': 'native' if native else 'verified-bypass'})
     check(len(paths) == 2 and len({p['az'] for p in paths}) == 2, 'expected two app subnet routes in distinct AZs')
     return {'natPaths': paths, 'rdsMultiAZ': True, 'primaryAZ': primary, 'standbyAZ': standby}
 
@@ -106,12 +110,21 @@ def infra():
     check(db['DBSubnetGroup']['VpcId'] == net['vpcId'], 'RDS and EKS VPC mismatch')
     check(db['BackupRetentionPeriod'] >= 1, 'RDS backup retention missing')
     vpc_filter = 'Name=vpc-id,Values=' + net['vpcId']
+    from lab_common import Runner, state
+    from nat_failover import config_from_state, status as nat_status
+    runner = Runner()
+    controller_config = config_from_state(state(runner, 'terraform'))
+    if controller_config and controller_config['vpc'] != net['vpcId']:
+        raise ValueError('NAT controller / active EKS VPC mismatch')
+    controller = nat_status(runner, controller_config)
     topology = verify_ha_network(
         aws('ec2', 'describe-subnets', '--filters', vpc_filter)['Subnets'],
         aws('ec2', 'describe-nat-gateways', '--filter', vpc_filter)['NatGateways'],
-        aws('ec2', 'describe-route-tables', '--filters', vpc_filter)['RouteTables'], db)
+        aws('ec2', 'describe-route-tables', '--filters', vpc_filter)['RouteTables'], db,
+        verified_bypasses=controller['bypassRoutes'])
     return {'vpc': net['vpcId'], 'nodeBounds': 'a=1..3 c=2..3', 'database': 'private, encrypted, available',
-            **topology, 'manualFollowUp': 'AZ-local routes and RDS MultiAZ observed; failover and all SG paths are not proven by this gate'}
+            **topology, 'natController': controller,
+            'manualFollowUp': 'Native or freshly verified bypass routes and RDS MultiAZ observed; fault injection and all SG paths are not proven by this gate'}
 
 
 def tools():

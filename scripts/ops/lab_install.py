@@ -229,6 +229,7 @@ def install(runner, settings, journal, directory, approved=False, config_path=No
     def infrastructure():
         runner.tf('terraform', 'init', '-input=false', '-no-color')
         apply_plan(runner, 'terraform', 'infra', infra_variables(settings, details['cidr']), approved=approved, directory=directory)
+        runner.run([sys.executable, 'scripts/ops/nat_failover.py', '--wait-ready'])
         live = cluster(runner)
         if not live:
             raise ValueError('Terraform completed without expected cluster')
@@ -304,6 +305,7 @@ def promote_main(runner, settings, journal, directory, approved=False, config_pa
         raise ValueError('Administrator email changed in config; explicitly update/review the account Secret before changing notification routing')
     apply_plan(runner, 'terraform', 'update-infra', infra_variables(settings, public_ip(), dns=True, mail=True),
                approved=approved, directory=directory)
+    runner.run([sys.executable, 'scripts/ops/nat_failover.py', '--wait-ready'])
     prepare_secrets(runner)
     # Preserve initial enable flags and switch the GitOps source to protected main.
     apply_plan(runner, 'terraform-k8s', 'promote-main', k8s_variables('main', active=True), approved=approved, directory=directory)

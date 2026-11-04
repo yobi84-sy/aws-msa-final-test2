@@ -1,6 +1,6 @@
 # 현재 아키텍처와 구현 근거
 
-2026-11-04에 main `cc040cf`를 대조한 설명입니다. 수량은 기본 선언이며 실행 중인 AWS 자원 목록이 아닙니다. [검증 범위](21-current-validation.md) · [문서 목록](README.md)
+main `cc040cf`의 문서 최신화에 NAT 자동 우회·복귀 통합 변경을 추가했습니다. 통합판의 AWS 재검증은 아직 수행하지 않았습니다. 수량은 기본 선언이며 실행 중인 AWS 자원 목록이 아닙니다. [검증 범위](21-current-validation.md) · [문서 목록](README.md)
 
 ![현재 TEST2 아키텍처](images/architecture.png)
 
@@ -14,11 +14,12 @@
 | 퍼블릭 | 10.42.1.0/24 / 10.42.2.0/24, IGW, NAT와 EIP 각 2개 | [VPC와 라우트](../terraform/network/main.tf) |
 | 앱 프라이빗 | 10.42.11.0/24 / 10.42.12.0/24, 각각 같은 AZ NAT 사용 | [라우팅](../terraform/network/main.tf) |
 | DB 프라이빗 | 10.42.21.0/24 / 10.42.22.0/24, RDS DB subnet group | [RDS](../terraform/rds/main.tf) |
+| NAT 회복 검사 | 10.42.31.0/24 / 10.42.32.0/24, 원래 NAT에 고정된 검사 경로 | [통합 모듈](../terraform/nat-autofailover/main.tf) |
 | S3 접근 | 두 앱 라우팅 테이블의 S3 Gateway Endpoint | [Endpoint](../terraform/network/endpoints.tf) |
 | EKS 노드 | t3.medium, a 최소/시작 1·최대 3 / c 최소/시작 2·최대 3 | [노드 그룹](../terraform/eks.tf) |
 | DB | MySQL 8.4.11, db.t4g.micro, Multi-AZ, 20GB 암호화 gp3, 비공개 | [RDS](../terraform/rds/main.tf) |
 
-NAT는 AZ별로 나눠 외부 통신의 장애 범위를 줄입니다. 이 라우팅은 다른 NAT의 상태를 감지하거나 자동 우회하지 않습니다. RDS는 주 DB와 동기식 대기 DB를 사용하며 대기 DB는 읽기 복제본이 아닙니다. 그림의 주/대기 위치는 예시입니다. 실제 연결 대상은 장애 조치 후 달라집니다.
+NAT는 AZ별로 나눠 외부 통신의 장애 범위를 줄입니다. 기본 라우팅에 [자동 우회·복귀 제어기](22-nat-autofailover.md)를 연결했습니다. EventBridge 예약→Lambda→SSM 검사→두 앱 기본 경로 변경으로 동작하며, 원래 경로의 독립 검사 후 복귀합니다. 제어기는 기본 활성화이고 EC2 검사기 4대·SSM Endpoint·회복 검사 서브넷 2개 등이 추가됩니다. RDS는 주 DB와 동기식 대기 DB를 사용하며 대기 DB는 읽기 복제본이 아닙니다. 그림의 주/대기 위치는 예시입니다. 실제 연결 대상은 장애 조치 후 달라집니다.
 
 EKS 제어부는 AWS 관리 영역입니다. VPC에는 노드와 파드가 있으며, API는 프라이빗 접근과 CIDR 제한 공개 접근을 함께 사용합니다. “EKS 전체가 사설 전용”인 구성으로 해석하지 않습니다.
 
@@ -52,7 +53,7 @@ Frontend 기본 2개는 노드 기준 분산·PDB·롤링 업데이트 설정을
 
 | 설계 선택 | 얻는 점 | 한계 |
 |---|---|---|
-| NAT 1개에서 AZ별 2개로 | 한쪽 경로 장애를 다른 AZ와 분리 | main에 자동 우회 컨트롤러 없음, 비용 증가 |
+| NAT 2개와 자동 우회·복귀 | 정상 대체 경로로 통신 재개 후 원래 경로 회복 확인 | 검사·제어 비용, 감지 지연, 통합판 AWS 재검증 필요 |
 | RDS Single-AZ에서 Multi-AZ로 | 대기 DB 기반 장애 조치 | 읽기 확장 아님, 전환 중 연결 중단 가능 |
 | 승인된 digest 배포 | 검증한 이미지와 배포 버전의 추적 | 승인 대기와 이미지 보존 정책 관리 필요 |
 | Outbox·중복 제어 | DB 완료와 발행 의도 연결, 반복 처리 감소 | 외부 전달의 정확히 한 번 보장 아님 |

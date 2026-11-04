@@ -10,6 +10,7 @@
 - [통합 운영·보존·복원](16-integrated-operations.md)
 - [배포 이력](RELEASES.md) · [롤백](ROLLBACK.md)
 - [AWS / 로컬 검증 범위](21-current-validation.md)
+- [NAT 자동 우회·복귀 통합](22-nat-autofailover.md)
 - [아키텍처 이미지와 로고 출처](images/README.md)
 
 ## 과거 실습 기록
