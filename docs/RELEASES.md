@@ -1,40 +1,28 @@
-# 배포 이력과 이미지 태그
+# 배포 이력 · 승인된 이미지와 사용자 동작
 
-차수는 주요 기능 변경 기준이다. 운영 설정 변경·롤백·재배포까지 포함하면 실제 배포 횟수는 더 많다. 이미지 태그는 소스 커밋 전체 SHA이며 아래 표에서는 앞 7자리만 표시했다.
+현재 배포 선언은 [release.json](../deploy/release.json), 실제 실행 이미지 선언은 [kustomization.yaml](../app/msa/kustomization.yaml)입니다. 이력의 배포 성공은 당시 기록이며 현재 사이트가 실행 중임을 뜻하지 않습니다.
 
-| 단계 | 변경 내용 | 이미지 태그 앞부분 | 비고 |
-| --- | --- | --- | --- |
-| 1차 | 기본 회원·상품·주문 서비스 | `ef24d0c` | Git 기록 보존, 현재 ECR에서는 미확인 |
-| 운영 설정 개선 | 앱·Grafana·Argo CD 공유 ALB와 HTTPS | `fb1b6d3` | Git 기록 보존 |
-| 2차 | 프런트엔드 디자인·롤링 배포 개선 | `7a8ead5` | 최초 배포 태그 |
-| 2차 재배포 | 새 디자인 복원·환경 재구축 | `3d72d46` | 당시 프런트엔드 이미지 확인 |
-| 3차 | 관리자·장바구니·주문 알림 | `58ab067` | 4차 직전 버전 |
-| 4차 | 관리자 운영 대시보드 | `222cef0` | 빌드·배포 완료, 실제 조회 연결 확인 |
-| 운영 개선 검증 | 상태 점검 분리·프런트엔드 2개 등 개선 코드 검증 | `6b65b88` | test에서 실제 적용·검증 |
-| 운영 개선 main 배포 | 검증본 승격 후 자동 테스트·이미지 게시 | `ace849a` | GitHub Actions의 5개 서비스 검증·게시 성공 |
+## 2026-11-02 · V1 → V2 장애 → 롤백 → V3
 
-## 현재 버전은 어디서 확인하는지
+인프라는 처음부터 NAT 2개·RDS Multi-AZ로 구축했습니다. 아래 앱 전환은 프런트엔드 이미지 변경이며 회원·상품·주문·Gateway 이미지와 DB를 유지했습니다. V1은 초기 Soldesk 화면을 현재 API·인증에 맞춘 디자인입니다. 초기 앱과 DB 전체를 되돌린 시연이 아닙니다.
 
-- **Git:** `app/msa/kustomization.yaml`의 각 서비스 `newTag`
-- **실제 실행 중인 버전:** 각 Deployment/Pod의 컨테이너 이미지
-- **AWS:** ECR의 서비스별 저장소에 표시된 이미지 태그
-- **빌드 기록:** GitHub Actions의 실행 커밋
+| 단계 | 검토·배포 PR | 사용자 관찰과 검증 |
+|---|---|---|
+| V1 정상 | [소스 #21](https://github.com/yobi84-sy/aws-msa-final-test2/pull/21), [이미지 #22](https://github.com/yobi84-sy/aws-msa-final-test2/pull/22) | 초기 디자인, 상품 상세 정상, 기존/새 파드 준비 상태와 완료 화면 |
+| V2 장애 | [소스 #23](https://github.com/yobi84-sy/aws-msa-final-test2/pull/23), [이미지 #24](https://github.com/yobi84-sy/aws-msa-final-test2/pull/24) | test2 디자인으로 변경, 의도적인 상세 URL 파라미터 불일치. Pod Healthy·목록 API 정상이어도 상세 실패 |
+| 정상 V1 복구 | [롤백 #25](https://github.com/yobi84-sy/aws-msa-final-test2/pull/25) | 이전 V1 digest 복구, 동일 상품·재고 10·이미지 유지, 상세 동작 PASS |
+| V3 수정 | [소스 #26](https://github.com/yobi84-sy/aws-msa-final-test2/pull/26), [이미지 #28](https://github.com/yobi84-sy/aws-msa-final-test2/pull/28) | 파라미터 수정·캐시 구분, 카드→상세 회귀 검사 추가, 실제 상세 정상 |
 
-빌드 중에는 소스 커밋과 현재 실행 이미지가 다를 수 있다. Actions가 이미지를 업로드하고 봇이 `newTag`를 변경한 뒤 Argo CD가 반영한다. Argo CD의 동기화 커밋은 이 봇 커밋이므로 이미지 태그와 값이 다를 수 있다.
+V1 정상 배포 참조는 `eed1154b290cdcf348f899628a02c11e4f139067`, 롤백 반영은 `58cab23d250141bf41b9e66cbb89632166028aa4`입니다. 최종 V3의 소스는 `0e2263d3be9c14d8bbfd5b121734eeeef58c9a1e`, #28 병합은 `cc040cf5d8f621d19d3851aa1a59ae2229815e53`입니다.
 
-## 전체 태그
+| 버전 | 프런트엔드 이미지 digest |
+|---|---|
+| V1 | `sha256:b2ee7fc76d872058c7d5b0003798a80a31b5008931d8988411d35f0ec81f4de9` |
+| V2 | `sha256:08a5c2988c771511e789d0b3e91b596987b44f0a738b74590c1a3268b0478840` |
+| V3 | `sha256:4f83675bb65e21b6938591779c3dc068daabb473556ce2382928ca97757d7a4f` |
 
-```text
-1차:       ef24d0cfa8a497f36eb86e626b6e6c9b26f307c8
-운영 개선: fb1b6d340f24ccaeaca6ae1bd05e1ed020a6a21b
-2차:       7a8ead5e1a0f9ae01fc740d263a4e87a32ffc656
-2차 재배포:3d72d4651f6e6d895d9622d5e1f714643bf7f40c
-3차:       58ab067dd239160afc60941cf14aee5830ca5840
-4차:       222cef0a5d6da9607fca8117dee09290bc5f0952
-개선 검증: 6b65b88abd38b6f599003335fca24b482013c09a
-개선 main: ace849a1da4a4dfa6d96352214f67298456d27e2
-```
+[검증 범위](21-current-validation.md) · [디자인 시연의 원래 설명](20-original-storefront-demo.md) · [롤백 절차](ROLLBACK.md)
 
-과거에 인프라와 ECR을 삭제하고 재구축했기 때문에 Git에 태그 기록이 있어도 이미지가 현재 ECR에 남아 있다는 뜻은 아니다. 롤백 전 관련 서비스 이미지가 모두 존재하는지 확인한다. 없다면 과거 소스로 이미지를 다시 빌드해야 한다.
+## 이전 배포 기록
 
-[롤백 방법](ROLLBACK.md) · [프로젝트 홈](../README.md)
+과거 태그·브랜치 기반 실습 내용은 [최신화 전 이력 원문](archive/2026-11-04/RELEASES.md)에 보존했습니다. 현재 digest 승인 배포의 실행 지침으로 사용하지 않습니다.

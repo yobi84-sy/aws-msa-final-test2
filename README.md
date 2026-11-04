@@ -1,96 +1,102 @@
-> **실행 시작점:** GUI 없이 [설치·검증·삭제 PS1 가이드](docs/15-one-command-lab.md)를 사용합니다. 2026-10-21에 실제 설치 → 데이터 보존 종료 → 복원 → 승인된 최신 배포 → 전체 삭제를 수행했습니다. 중간 재실행과 수정이 있었으며, 한 번에 무중단 완료한 시험으로 설명하지 않습니다. [검증 결과와 남은 확인 범위](docs/17-validation-20261021.md)
+# TEST2 · AWS EKS 쇼핑몰 인프라와 서비스 운영
 
-> **확인 범위:** 10월 20일에는 HPA·노드 자동 확장/축소와 실제 DB 비밀번호 회전 후 자동 갱신을 확인했습니다. 10월 21일에는 CodeBuild 내부 검증·조회 전용 권한·데이터 복원·구매자/관리자 SES 접수와 중복 건너뜀·state 버킷까지 삭제를 확인했습니다. 이번 ALB·CloudTrail **자동 재시도 변경은 코드/모의 검증 범위**이며 AWS 재배포 시험은 아직 하지 않았습니다.
+Terraform으로 2개 가용 영역에 인프라를 만들고, **테스트한 이미지를 동료 승인 후 GitOps로 배포**하는 프로젝트입니다. 회원·상품·주문 서비스의 배포뿐 아니라 주문 복구, 메일 처리, 자동 확장, 비밀번호 갱신, 데이터 보존·복원과 전체 삭제까지 다룹니다.
 
-> **신규 구축 준비안(아직 AWS 미실행):** 이 브랜치는 NAT를 AZ별 2개로, RDS를 Multi-AZ로 생성하도록 변경했습니다. 기존 사진·검증 결과는 이전 구성의 기록입니다. [재배포·롤백 촬영 계획과 준비 상태](docs/19-ha-release-evidence.md)를 먼저 확인하세요.
+> **문서 기준:** 2026-11-04에 main `cc040cf`의 코드와 보관된 실행 기록을 대조했습니다. NAT 2개·RDS Multi-AZ는 2026-11-02 실제 구축 기록이 있습니다. 현재 AWS 자원이 실행 중이라는 뜻은 아닙니다. 이 문서 작업에서는 AWS를 새로 구축하지 않았습니다. [검증 범위와 근거](docs/21-current-validation.md)
 
-# AWS · EKS 서비스 운영 프로젝트
+![TEST2 전체 아키텍처: 네트워크 계층, 승인 배포, 주문 메시징, 관측과 자동 확장](docs/images/architecture.png)
 
-Terraform으로 AWS 인프라를 구성하고, GitHub Actions와 Argo CD로 앱을 배포한 운영 실습 프로젝트입니다.
+[SVG 원본으로 확대](docs/images/architecture.svg) · [구현 파일별 근거](docs/01-architecture.md) · [아이콘 출처](docs/images/README.md)
 
-앱 기능 자체보다는 **배포 자동화, 모니터링, 자동 확장, 장애 복구**를 직접 확인하는 데 집중했습니다.
+## 먼저 볼 문서
 
-![AWS EKS 프로젝트 구성도](docs/images/architecture.png)
+| 목적 | 문서 |
+|---|---|
+| 전체 구조·설계 선택·남은 한계 | [아키텍처](docs/01-architecture.md) |
+| 승인 배포·CodeBuild·GitOps | [배포 자동화](docs/02-deployment.md) |
+| 주문 복구·Outbox·메일·관측 | [서비스 운영과 장애 대응](docs/03-monitoring-and-tests.md) |
+| 무엇을 실제로 시험했는가 | [AWS / 로컬 검증 구분](docs/21-current-validation.md) |
+| 설치부터 삭제까지 | [PS1 실행 가이드](docs/15-one-command-lab.md) · [보존·복원 상세](docs/16-integrated-operations.md) |
+| 배포 버전과 복구 | [V1 → V2 → 롤백 → V3](docs/RELEASES.md) · [롤백 절차](docs/ROLLBACK.md) |
+| 예전 실습의 원문 | [기록 목록과 문서의 적용 범위](docs/README.md) |
 
-## 프로젝트 문서
+## 핵심 구성
 
-전체 내용을 한 페이지에 넣기보다 주제별로 나눴습니다. 처음 보는 기술도 따라갈 수 있도록 **역할 → 사용한 이유 → 실습 결과** 순서로 설명했습니다.
+| 영역 | 현재 코드의 구현 |
+|---|---|
+| 네트워크 | 서울 리전, VPC 1개, AZ 2개, 퍼블릭·앱·DB 서브넷 각 2개, AZ별 NAT 2개, S3 Gateway Endpoint |
+| 앱 실행 | EKS 1개, t3.medium 관리형 노드 기본 3대, Frontend 2개, Gateway·Member·Product·Ordering 기본 각 1개 |
+| 접속 | Route 53·공유 ALB·ACM, 사이트 / Argo CD / Grafana의 호스트·경로 분기 |
+| 데이터 | 비공개 RDS MySQL Multi-AZ, 상품 이미지 S3, 모니터링 EBS PVC 3개 |
+| 자격 증명 | RDS 관리형 Secrets Manager → ESO → Kubernetes Secret → 변경 감지 Job의 순차 앱 갱신 |
+| 이벤트 | 주문 Outbox → SNS → SQS → Lambda → SES, DLQ와 DynamoDB 중복 제어 |
+| 배포 | Actions·Docker·ECR digest·승인 PR·Argo CD, VPC CodeBuild의 배포 후 조회 검증 |
+| 관측·확장 | Prometheus·Grafana·Alertmanager, CloudWatch·CloudTrail, Member HPA·Cluster Autoscaler |
 
-| 페이지 | 내용 |
-| --- | --- |
-| [프로젝트 구성](docs/01-architecture.md) | 구성도, 주요 서비스, Terraform 폴더 분리 |
-| [배포 자동화](docs/02-deployment.md) | GitHub Actions → ECR → Argo CD → EKS |
-| [모니터링과 실습 결과](docs/03-monitoring-and-tests.md) | 지표·이메일 알림, 자동 확장, 메시징 검증 |
-| [문제 해결 기록](docs/04-troubleshooting.md) | Grafana 503, 관리자 로그인, Terraform 오류 |
-| [프로젝트 회고](docs/05-retrospective.md) | 배운 점과 실습 범위 |
-| [개선 적용·검증](docs/10-live-validation.md) | 원격 state, 테스트, 복원, 가용성 개선과 코드 리뷰 |
+기본 선언과 실제 실행 수량은 구분합니다. 옵션과 입력에 따라 리소스 생성 여부가 달라지며, 특히 주문 메일은 발신자 설정과 SES 인증 후 소비자를 활성화해야 합니다.
 
-[배포 이력·이미지 태그](docs/RELEASES.md) · [이전 버전으로 롤백](docs/ROLLBACK.md)
+## 사용자 요청과 주문 처리
 
-## 사용 기술
+브라우저는 ALB를 통해 프런트엔드를 받고, `/member-service`·`/product-service`·`/ordering-service` 요청은 API Gateway 파드로 전달합니다. Gateway는 내부 ClusterIP 서비스로 라우팅합니다. Member·Product·Ordering은 같은 RDS 인스턴스의 DB를 사용하며, Ordering은 Product의 재고 예약과 Member의 이메일 조회 API도 호출합니다.
 
-Helm·Kustomize는 [배포 자동화](docs/02-deployment.md), EBS는 [프로젝트 구성](docs/01-architecture.md), SNS·SQS·CloudWatch·CloudTrail은 [모니터링과 실습 결과](docs/03-monitoring-and-tests.md)에서 쉽게 풀어 설명했습니다.
+주문은 Idempotency-Key와 DB 상태를 이용해 중복 요청·중간 실패를 복구합니다. 재고 예약·확정 과정과 보상 상태를 저장하고, 완료 시 **ORDERED 변경과 Outbox 생성을 같은 DB 트랜잭션**으로 처리합니다. 이후 별도 작업이 SNS로 발행합니다. 외부 API까지 하나의 분산 트랜잭션으로 묶거나 정확히 한 번 처리한다고 주장하지 않습니다.
 
-- **인프라:** Terraform · VPC · EKS · IAM · ALB · Route 53 · ACM
-- **배포:** Docker · ECR · GitHub Actions · Argo CD · Helm · Kustomize
-- **데이터·운영:** RDS · S3 · EBS · Prometheus · Grafana · SNS · SQS · CloudWatch · CloudTrail
+Lambda는 SQS 메시지를 받아 구매자·관리자 메일을 구분해 보내고, DynamoDB에 이벤트별 처리 상태를 남깁니다. 재시도 실패는 DLQ로 이동합니다. SES 접수 성공과 실제 받은편지함 도착은 별도로 확인했습니다.
+
+## 배포와 복구
+
+1. Actions가 변경 서비스를 골라 테스트하고 Docker 이미지를 만듭니다.
+2. 테스트한 이미지 산출물을 ECR에 게시하고 digest를 고정한 **배포 PR**을 제안합니다.
+3. 필수 검사·동료 검토 후 main에 병합하면 Argo CD가 Git의 배포 선언을 동기화합니다. 노드는 ECR에서 이미지를 받습니다.
+4. 배포 후 Actions가 VPC CodeBuild를 실행해 revision·이미지·가용성·TLS·HTML·상품 API를 검사합니다. 이 역할은 배포 변경 및 Secret 조회 권한을 갖지 않습니다.
+5. 문제 발생 시 이전 검증 digest를 복구하는 PR을 만듭니다. DB·인프라는 자동 롤백하지 않습니다.
+
+실제 시연에서는 **V1 정상 화면 → V2 상품 상세 오류 → V1 이미지 롤백 → V3 수정 배포**를 확인했습니다. V2는 Pod Healthy·HTTP 200·목록 API 정상만으로 사용자 동작 오류를 잡을 수 없다는 사례였고, V3에 카드→상세 회귀 검사를 추가했습니다. [배포 이력](docs/RELEASES.md)
+
+## 검증 결과를 읽는 기준
+
+| 구분 | 확인한 내용 | 범위 |
+|---|---|---|
+| AWS · 10월 기록 | HPA·노드 확장/축소, DB 비밀번호 회전, CodeBuild 권한, 스냅샷 보존·복원·데이터 비교, 메일 수신, 삭제 | 각 기록의 당시 구성 기준 |
+| AWS · 11월 2일 | NAT 2개·RDS Multi-AZ 최초 구축, 승인 재배포·롤백·수정, RDS 강제 장애 조치의 실제 연결 대상 c→a와 앱 복구, NAT 경로 분리 | 현재 HA 선언과 배포 시연의 근거 |
+| AWS · 11월 3일 별도 시험 | NAT-a 장애 주입 → NAT-c 자동 우회 → 회복 확인 후 복귀 | **별도 최소 환경의 컨트롤러 시험. 현재 main에는 미통합** |
+| 로컬 · 문서 최신화 | 자동화 단위 검사·프런트 회귀 검사·문서 링크·SVG/PNG 정합성 | [실행 결과와 한계](docs/21-current-validation.md) |
+
+## 설치·검증·보존·삭제
+
+현재 출발점은 **main과 PS1**입니다. 예전 `test`·`test2`·`build2/*` 브랜치 안내 및 GUI 자료는 과거 기록입니다. AWS CLI 자격 증명·권한, Terraform, Helm, kubectl, Python 등 사전 도구와 입력값을 [실행 가이드](docs/15-one-command-lab.md)에서 먼저 확인하세요. `scripts/ops/environment.json`과 backend·도메인·계정 값의 일치가 필요하며, 다른 계정에 그대로 실행하면 되는 범용 설치기는 아닙니다.
+
+```powershell
+git switch main
+git pull --ff-only
+.\Install-Lab.ps1           # 단계 미리보기
+.\Install-Lab.ps1 -Execute  # 승인한 환경에 실제 생성·재개
+.\Verify-Lab.ps1            # 기본 상태 검증
+.\Remove-Lab.ps1            # 삭제 계획 미리보기
+```
+
+데이터를 보존하는 종료는 스냅샷·복구 자료 준비 후 실행 환경을 내립니다. 이 방식은 VPC·NAT 등 보존 자원의 비용을 남깁니다. 복구 자료의 Windows 사용자·PC 의존성도 있어 팀 공용 재해 복구 체계와는 다릅니다.
+
+**완전 폐기를 결정한 경우에만** `Remove-Lab.ps1 -Execute -DiscardData`를 사용합니다. 데이터·이미지·로그·기록한 백업과 state 버킷까지 제거하는 절차이며, 도메인 등 기존 공용 자원은 소유권 기준으로 구분합니다. 현재 계정 전체의 비용 0원을 보장하는 명령은 아닙니다. state는 관리 자원 정리가 끝난 뒤 마지막에 처리합니다.
+
+## 설계상 남은 경계
+
+- AZ별 NAT는 장애 영향을 분리합니다. **다른 NAT로 자동 전환하는 코드는 main에 없습니다.** 11월 3일 별도 시연 결과를 기본 기능으로 설명하지 않습니다.
+- RDS Multi-AZ는 대기 DB와 장애 조치를 제공하지만 읽기 확장 기능이 아니며, 전환 중 연결 재시도가 필요합니다. 실제 AZ 전체 장애를 재현한 시험은 아닙니다.
+- Frontend는 2개지만 백엔드는 기본 각 1개입니다. HPA 활성 대상은 Member뿐이며 모든 서비스의 무중단을 보장하지 않습니다.
+- 상품 S3의 `products/*`는 공개 읽기 경로입니다. 전체 버킷이 비공개라는 설명은 맞지 않습니다.
+- Argo CD·Grafana는 인터넷 공개 관리 화면입니다. 로그인 보호는 있지만 사설 전용 접속이나 NetworkPolicy·mTLS 구성은 아닙니다.
+- RDS 백업 보존 1일·삭제 보호 해제 등 실습 기본값은 실제 운영의 데이터 보존 정책과 다릅니다.
 
 ## 저장소 구조
 
 ```text
-.
-├── terraform-state-bootstrap/ # 따로 보관하는 state용 S3 버킷
-├── terraform/          # AWS 인프라
-├── terraform-k8s/      # EKS 내부 운영 도구
-├── app/msa/            # 앱 코드와 배포 매니페스트
-├── .github/workflows/  # 변경 서비스 테스트·이미지 빌드·태그 갱신
-├── scripts/            # 빌드 대상 선택·잔여 자원·복원·접속 점검
-└── docs/               # 구성·실습·문제 해결 기록
+terraform-state-bootstrap/  원격 state 저장소
+terraform/                  VPC·EKS·RDS·메시징·검증 IAM 등 AWS 자원
+terraform-k8s/              Helm 기반 운영 도구·스토리지·자격 증명 연계
+app/msa/                    다섯 서비스·Kustomize·Ingress·HPA·DB 동기화 Job
+.github/workflows/          검사·이미지 게시·승인 확인·CodeBuild 검증
+scripts/                    설치·검증·보존·복원·삭제·롤백 자동화
+deploy/release.json         서비스별 소스 SHA·digest·배포 출처
+docs/                       현재 설명·원문 기록·아키텍처 이미지
 ```
-
-## 확인한 결과
-
-- GitHub 코드 변경부터 실제 홈페이지 반영까지 배포 흐름 확인
-- 파드 재생성·재배치와 파드·노드 수 변화 확인
-- 운영 경보와 주문 알림 이메일 수신
-- SNS → SQS → DLQ 전달 및 CloudWatch 경보 확인
-- CloudTrail 작업 이력과 S3 로그 확인
-- S3 원격 state 저장과 동시 작업 잠금 확인
-- EKS 관리 로그 수집과 별도 RDS 복원 데이터 확인
-- 프런트엔드 2개·PDB·종료 대기 설정 후 파드 교체 중 접속 확인
-- Terraform 세 구성의 validate 성공과 plan에서 No changes 확인
-
-웹사이트·Grafana·Argo CD는 공유 ALB와 개별 도메인으로 연결했습니다. 실습 인프라를 삭제한 동안에는 접속되지 않습니다.
-
-프런트엔드는 두 파드로 구성했고, 일부 백엔드·운영 도구는 단일 파드입니다. 이번 준비안은 RDS Multi-AZ와 AZ별 NAT를 사용하지만 실제 신규 구축은 아직 검증하지 않았습니다. 모든 장애에서 무중단을 보장하는 구조는 아닙니다.
-
-## 이번에 개선한 내용
-
-| 개선 | 사용한 이유 |
-| --- | --- |
-| S3 원격 state·잠금 | Terraform이 관리하는 자원 정보를 함께 사용하고 동시 수정을 방지 |
-| 변경 서비스만 테스트·빌드 | 관련 없는 이미지까지 다시 만드는 작업 감소 |
-| EKS 관리 로그 | Kubernetes API 요청과 인증·감사 기록 확인 |
-| 상태 점검 분리 | 시작 대기·트래픽 수신 준비·프로세스 이상을 구분 |
-| 프런트엔드 2개·PDB | 노드 점검 중 최소 한 파드를 유지하도록 구성 |
-| RDS 복원·운영 스크립트 | 백업 데이터 복원, 잔여 자원 조회, HTTPS 접속을 직접 확인 |
-
-테스트 실패 시 이미지 게시를 중단하며, 배포 후에는 Actions 성공과 별도로 Argo CD 상태와 실제 접속을 확인합니다.
-
-## 실행 안내
-
-```powershell
-.\Install-Lab.ps1 -Execute
-.\Verify-Lab.ps1
-.\Remove-Lab.ps1 -Execute -DiscardData
-```
-
-세 명령은 각각 설치·조회 검증·실제 전체 삭제입니다. 한꺼번에 붙여 넣어 설치 직후 삭제하지 마세요. 입력·승인·재개·최초 배포 커밋 고정과 이후 main 전환은 [실행 가이드](docs/15-one-command-lab.md)를 확인하세요.
-
-[수동 단계 참고](docs/14-second-build.md) · [state 설명](docs/07-terraform-state.md) · [RDS 복원 실습](docs/08-rds-restore-lab.md)
-
-state 버킷을 먼저 준비하고 **AWS 인프라 → EKS 내부 구성 → 앱 배포 → DNS 연결** 순서로 진행합니다. 새 삭제 PS1은 앱·ALB·EBS를 먼저 정리하고, 잔여 확인 후 state 버킷도 마지막에 삭제합니다. `-KeepStateBucket`으로 보존할 수 있습니다.
-
-GitHub Actions의 이미지 게시 대상은 main입니다. 최초 자동 설치는 테스트한 배포 커밋에 고정하고, 초기 배포 PR 승인·병합 후 `Install-Lab.ps1 -Execute -PromoteMain`으로 보호된 main 추적을 켭니다. 소스 공개와 실제 배포 승인, CI 실행 허가는 구분합니다.
-
-**브랜치:** main은 검증한 개선 버전, test는 개선 전 main 보관용입니다. 새 수정은 최신 main에서 작업 브랜치를 만들어 진행합니다. 이전 test 코드를 현재 S3 state 환경에 그대로 적용하지 않습니다.
