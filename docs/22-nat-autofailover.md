@@ -73,7 +73,7 @@ python scripts/ops/nat_failover.py --wait-ready
 
 로컬에서는 우회·복귀, 반대 AZ 방향, 중복/누락 예약, UNKNOWN, 수동 drift, 응답 유실, 두 경로 동시 실패, 정지·상태 조회 경계를 검사합니다. Terraform은 공급자를 모의 처리해 검사기의 사설 배치·원래 경로 고정·SSM·IAM 범위·동시 실행을 검사합니다. 실제 AWS에 연결하지 않습니다.
 
-2026-11-05 로컬 결과는 Python 자동화 검사 **151개 통과**, Terraform validate·포맷 검사 통과, AWS 공급자를 모의 처리한 Terraform 시험 **3개 통과**입니다. 이 수치는 쇼핑몰 전체 Java 테스트나 AWS 통합 시험 수가 아닙니다. [통합판 검증 결과](validation/nat-integration-qa-20261105.json)
+2026-11-05 로컬 결과는 Python 자동화 검사 **152개 통과**, Terraform validate·포맷 검사 통과, AWS 공급자를 모의 처리한 Terraform 시험 **3개 통과**입니다. 이 수치는 쇼핑몰 전체 Java 테스트나 AWS 통합 시험 수가 아닙니다. [통합판 검증 결과](validation/nat-integration-qa-20261105.json)
 
 통합판의 신규 설치→SSM 준비→양방향 장애 주입→복귀→재적용 중 우회 유지→보존·복원→전체 삭제는 다음 승인된 AWS 시험에서 확인할 범위입니다. 기존 전체 쇼핑몰 복원 성공을 이 통합판의 검증으로 대체하지 않습니다.
 

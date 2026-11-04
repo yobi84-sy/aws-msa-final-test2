@@ -241,7 +241,9 @@ class QuiesceTests(unittest.TestCase):
         name = CONFIG['project'] + '-nat-autofailover'; calls = []; waits = []
         arn = f"arn:aws:lambda:{CONFIG['region']}:{CONFIG['account']}:function/{name}"
         value = {'resources': [{'module': 'module.nat_autofailover[0]', 'type': 'aws_lambda_function',
-                  'instances': [{'attributes': {'function_name': name}}]}]}
+                  'instances': [{'attributes': {'function_name': name}}]},
+                  {'module': 'module.nat_autofailover[0]', 'type': 'aws_cloudwatch_event_rule',
+                   'instances': [{'attributes': {'name': name + '-every-minute'}}]}]}
         def aws(service, operation, *args, **kw):
             calls.append((service, operation))
             return {'list-rules': {'Rules': [{'Name': name + '-every-minute', 'Arn': f"arn:aws:events:{CONFIG['region']}:{CONFIG['account']}:rule/{name}-every-minute"}]},
@@ -260,6 +262,15 @@ class QuiesceTests(unittest.TestCase):
         def denied(*args, **kw): raise RuntimeError('AccessDenied')
         with self.assertRaisesRegex(RuntimeError, 'AccessDenied'):
             ops.quiesce(SimpleNamespace(aws=denied), value, sleep=lambda _: self.fail('no draining after error'))
+    def test_partial_rule_state_does_not_authorize_touching_untracked_lambda(self):
+        name = CONFIG['project'] + '-nat-autofailover-every-minute'
+        value = {'resources': [{'module': 'module.nat_autofailover[0]', 'type': 'aws_cloudwatch_event_rule',
+                  'instances': [{'attributes': {'name': name}}]}]}
+        def aws(service, operation, *args, **kwargs):
+            self.assertEqual(service, 'events', 'no Lambda API authorized by this partial state')
+            return {'Rules': []}
+        result = ops.quiesce(SimpleNamespace(aws=aws), value, sleep=lambda _: self.fail('no Lambda to drain'))
+        self.assertIsNone(result['function'])
 
 
 class StatusTests(unittest.TestCase):

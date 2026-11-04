@@ -35,7 +35,11 @@ def quiesce(runner, value, *, sleep=time.sleep):
         return {'status': 'not-managed'}
     if not names <= {expected, expected + '-every-minute'}:
         raise ValueError('Unexpected NAT controller identity in state')
-    rules = runner.aws('events', 'list-rules', '--name-prefix', expected + '-every-minute')['Rules']
+    # A partial state proving ownership of only the rule does not authorize
+    # stopping a pre-existing function merely because its name happens to match.
+    rule_owned = expected + '-every-minute' in names
+    function_owned = expected in names
+    rules = runner.aws('events', 'list-rules', '--name-prefix', expected + '-every-minute')['Rules'] if rule_owned else []
     for rule in rules:
         if rule['Name'] != expected + '-every-minute':
             continue
@@ -43,7 +47,7 @@ def quiesce(runner, value, *, sleep=time.sleep):
         if rule['Arn'] != arn:
             raise ValueError('NAT schedule ownership mismatch')
         runner.aws('events', 'disable-rule', '--name', rule['Name'], empty=True)
-    functions = runner.aws('lambda', 'list-functions')['Functions']
+    functions = runner.aws('lambda', 'list-functions')['Functions'] if function_owned else []
     owned = [f for f in functions if f['FunctionName'] == expected]
     for function in owned:
         arn = f"arn:aws:lambda:{CONFIG['region']}:{CONFIG['account']}:function/{expected}"
@@ -58,7 +62,7 @@ def quiesce(runner, value, *, sleep=time.sleep):
         if result.get('ReservedConcurrentExecutions') != 0:
             raise ValueError('NAT controller concurrency not stopped')
         sleep(timeout + 5)
-    return {'status': 'quiesced', 'function': expected}
+    return {'status': 'quiesced', 'function': expected if function_owned else None}
 
 
 def status(runner, config, *, now=None):
