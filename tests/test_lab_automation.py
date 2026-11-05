@@ -360,7 +360,7 @@ class StateRemovalTests(unittest.TestCase):
                 'LoadBalancers LoadBalancerDescriptions Volumes Buckets repositories Roles '
                 'Policies Addresses Functions Topics TableNames trailList MetricAlarms '
                 'OpenIDConnectProviderList CertificateSummaryList SecretList projects logGroups '
-                'ResourceRecordSets').split()
+                'ResourceRecordSets Rules InstanceProfiles').split()
         for mode in ('empty', 'remaining', 'denied'):
             def aws(service, operation, *args, **kwargs):
                 if (service, operation) == ('sqs', 'list-queues'):

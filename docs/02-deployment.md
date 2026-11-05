@@ -1,94 +1,36 @@
-# 배포 자동화
+# 테스트한 이미지를 승인 후 GitOps로 배포하기
 
-배포는 수정한 앱을 실제 서버에서 실행할 수 있게 반영하는 과정이다. 처음에는 이미지를 직접 올렸지만, 이후에는 GitHub에 코드를 올리면 EKS까지 반영되도록 연결했다.
+현재 기준은 main과 digest 기반 배포 PR입니다. 예전 `test` 브랜치나 이미지 태그를 main에 직접 갱신하던 기록은 [과거 문서](README.md)입니다.
 
-## 코드가 홈페이지에 반영되는 과정
+## 소스 검사와 이미지 게시
 
-```text
-코드 수정 → GitHub push
-  → GitHub Actions가 관련 서비스 테스트·이미지 빌드
-  → ECR에 이미지 업로드
-  → Git의 이미지 태그 변경
-  → Argo CD가 확인
-  → EKS에서 새 버전 실행
-```
+[build-push.yml](../.github/workflows/build-push.yml)은 변경 서비스를 선택하고 자동화 단위 검사·설정 검사·Windows 실행 검사를 수행합니다. 서비스 검사와 Docker 빌드가 통과한 이미지 산출물을 보관한 후, 게시 단계에서 동일 산출물을 ECR에 올립니다. 게시를 위한 별도 미검증 재빌드를 하지 않습니다.
 
-**Docker 이미지**는 앱 실행에 필요한 파일과 환경을 묶은 것이다. **ECR**은 이 이미지를 보관하는 AWS 저장소다.
+[test-service.sh](../scripts/ci/test-service.sh)는 Member·Product·Ordering의 지정된 테스트, Gateway 테스트, 프런트엔드 Node 검사를 실행합니다. 모든 Java 테스트와 실제 RDS 통합 검사를 무조건 실행하는 구성은 아닙니다. Python 자동화 검사의 다수도 모의 실행입니다.
 
-**GitHub Actions**는 GitHub에서 정해둔 작업을 자동 실행하는 도구다. 이번에는 앱 이미지 빌드·업로드와 배포 태그 변경을 맡겼다.
+PR 검사는 이미지를 게시하지 않습니다. main 게시 역시 `ENABLE_IMAGE_PUBLISH` 또는 명시적 dispatch 입력 등 워크플로 조건을 따릅니다. push 한 번이 인프라 설치와 앱 운영 배포를 항상 시작하는 구조는 아닙니다.
 
-**Argo CD**는 Git의 배포 설정과 Kubernetes의 실제 상태를 비교해 맞추는 도구다. Git에 새 이미지 태그가 올라오면 그 버전을 실행하도록 반영한다.
+## 이미지 배포 PR과 Argo CD
 
-## Helm — 여러 설치 파일을 묶어서 설치
+OIDC로 ECR 게시 권한을 얻고 서비스별 digest를 고정합니다. 워크플로는 main을 직접 수정하는 대신 release 브랜치에서 다음 파일을 바꾸는 PR을 만듭니다.
 
-Prometheus나 Grafana를 Kubernetes에 설치하려면 실행·통신·저장 공간 등에 필요한 여러 설정이 있어야 한다.
+- [app/msa/kustomization.yaml](../app/msa/kustomization.yaml): 실행할 이미지 digest
+- [deploy/release.json](../deploy/release.json): 서비스별 소스 SHA·digest·워크플로 출처
 
-Helm은 이런 파일을 **Chart라는 설치 패키지**로 묶어서 사용하게 해준다. 내 프로젝트에서는 Prometheus·Grafana·Argo CD 같은 운영 도구를 설치할 때 사용했다.
+검사·동료 검토 후 병합하면 Argo CD가 Git의 선언을 읽어 EKS를 동기화하고 노드가 ECR 이미지를 받습니다. **ECR→Argo CD가 이미지 전달 경로인 것은 아닙니다.** 승인 정책 코드는 [review-policy.yml](../.github/workflows/review-policy.yml)에 있으며 저장소 보호 설정도 유지해야 합니다. 다른 저장소로 복사한다고 GitHub의 보호 규칙까지 자동으로 생기지는 않습니다.
 
-```text
-Terraform → Helm Chart + 설정값 → EKS에 운영 도구 설치
-```
+최초 설치는 고정된 release commit을 사용하고, 승인된 초기 배포 PR을 확인한 뒤 `Install-Lab.ps1 -Execute -PromoteMain` 경로로 main 추적에 전환합니다. 실제 실행 전 [설치 가이드](15-one-command-lab.md)의 체크포인트를 확인합니다.
 
-예를 들어 Grafana의 저장 공간이나 Prometheus의 메모리를 설정값으로 전달했다. 설치만 하는 게 아니라 이후 설정을 갱신할 때도 사용한다.
+## VPC CodeBuild의 배포 후 검사
 
-## Kustomize — 앱 배포 목록과 이미지 버전 관리
+[deploy-check.yml](../.github/workflows/deploy-check.yml)은 배포 선언 병합 또는 dispatch를 받아 `ENABLE_DEPLOY_CHECKS` 조건으로 실행됩니다. GitHub OIDC→검증 소스 ZIP S3→VPC CodeBuild 순서입니다. CodeBuild는 사설 EKS API에 접근할 수 있도록 기존 프라이빗 서브넷을 사용합니다.
 
-Kubernetes에는 어떤 앱을 몇 개 실행하고 어떤 이미지로 띄울지 적은 설정 파일이 필요하다.
+검사 대상은 revision·이미지·가용성·TLS·HTML·상품 API입니다. EKS 권한은 soldesk Deployment와 지정 Argo Application의 조회 중심으로 제한하며 Secret 읽기·배포 변경 권한을 주지 않습니다. 정상 검증과 의도적으로 잘못된 revision 실패는 [10월 실제 기록](17-validation-20261021.md)에서 확인합니다.
 
-Kustomize는 **사용할 배포 파일을 모으고 이미지 태그 같은 값을 지정**하는 도구다. `app/msa/kustomization.yaml`에서 회원·상품·주문 등의 배포 목록과 이미지 태그를 관리한다.
+이 검사를 통과해도 모든 사용자 동작이 정상인 것은 아닙니다. V2의 상품 상세 오류는 기존 기본 검사를 통과했으므로 V3에서 카드→상세 회귀 검사를 추가했습니다. [실제 흐름과 PR](RELEASES.md)
 
-Helm은 주로 운영 도구 설치에, Kustomize는 내가 만든 앱의 배포 설정 관리에 사용했다.
+## 롤백과 다음 버전
 
-## 이미지 태그는 버전을 구분하는 이름
+복구도 Git에 선언하고 검토하는 변경입니다. [rollback_release.py](../scripts/ops/rollback_release.py)는 이전 main의 release에서 이미지 digest를 가져와 복구 PR을 제안합니다. DB·Terraform은 되돌리지 않습니다. 스키마·외부 API 호환성과 ECR 이미지 존재를 먼저 확인합니다. [절차](ROLLBACK.md)
 
-같은 서비스라도 수정 전·후의 이미지가 다르다. 어떤 이미지를 실행할지 구분하는 이름이 **태그**다.
-
-이번에는 Git 커밋 값으로 태그를 만들었다. 코드 변경을 저장한 기록과 이미지를 연결해서 확인하기 위해서다.
-
-현재 태그는 Kustomize 파일에 있고, 차수별 기록은 [배포 이력](RELEASES.md)에 정리했다. 이전 이미지로 돌아가는 과정은 [롤백 안내](ROLLBACK.md)에서 볼 수 있다.
-
-## 직접 확인한 내용
-
-프런트엔드 수정부터 관리자 대시보드 추가까지 같은 흐름으로 배포했다. Actions 성공, 이미지 태그 변경, 파드 교체, 실제 화면 변경을 확인했다.
-
-**롤링 업데이트**는 실행 중인 파드를 새 버전으로 조금씩 교체하는 방식이다. 프런트엔드는 새 파드가 준비된 뒤 기존 파드를 종료하도록 설정했다. 이 설정만으로 모든 상황에서 무중단이 보장되는 것은 아니므로 접속 결과도 함께 확인했다.
-
-AWS 인증에는 GitHub Actions용 OIDC와 앱용 ServiceAccount 연결 IAM 역할을 사용했다. 필요한 권한을 역할로 받아 사용하도록 구성한 것이다.
-
-다시 구축할 때는 AWS 인프라, 이미지·Secret과 EKS 내부 도구, 앱 배포, ALB 확인 후 DNS 연결 순으로 진행한다. **Secret은 비밀번호처럼 앱에 필요한 값을 Kubernetes에 전달하는 리소스**다.
-
-[앱 기능 설정 절차](../app/msa/APP-FEATURES.md)
-
-
-## 변경한 서비스만 테스트·빌드
-
-회원 서비스 코드만 바뀌었다면 회원 이미지만 다시 만들도록 개선했다. 여러 서비스가 함께 사용하는 파일이나 CI 설정이 바뀌면 필요한 검증이 빠지지 않도록 전체를 대상으로 한다. 배포 파일이나 문서만 바뀌면 이미지 빌드는 생략한다.
-
-```text
-변경 경로 확인 → 관련 서비스 테스트 → 이미지 빌드·게시
-  → 해당 서비스의 이미지 태그만 변경 → Argo CD 반영
-```
-
-선택한 서비스의 테스트가 모두 성공해야 이미지를 게시한다. 수동 전체 빌드도 남겨두어 처음 구축할 때 사용할 수 있다. 테스트 대상에는 관리자 접근 제한, 재고 동시 처리, 주문 검증, 프런트엔드 장바구니 등이 포함된다.
-
-GitHub Actions의 게시와 AWS 인증은 main에서만 수행한다. main 병합 전 PR에서는 검증만 진행한다. 현재 test는 개선 전 main 보관용이며, 별도 검증 환경은 최신 main에서 새 브랜치를 만들어 이미지 게시와 Argo 대상을 지정한다.
-
-## 파드를 두 개 띄우는 것과 종료 순서
-
-프런트엔드는 두 파드를 다른 노드에 배치했다. **PDB는 노드 점검처럼 파드를 자발적으로 내릴 때 최소한의 파드를 남기도록 제한하는 설정**이다. 실제로 첫 파드 축출은 허용하고 두 번째 동시 축출은 막는지 확인했다.
-
-파드가 너무 빨리 종료되면 ALB가 대상 변경을 반영하는 중 요청이 실패할 수 있었다. 종료 전 대기를 추가하고 같은 실습에서 접속을 다시 확인했다. 파드 수와 종료 순서를 함께 고려해야 했다.
-
-## 정상 상태를 확인하는 세 가지 점검
-
-| 점검 | 확인하는 내용 |
-| --- | --- |
-| startupProbe | 앱이 처음 실행될 시간을 기다림 |
-| readinessProbe | 지금 요청을 받을 준비가 됐는지 확인 |
-| livenessProbe | 앱 자체가 정상적으로 살아 있는지 확인 |
-
-DB 연결 문제가 생겼다는 이유만으로 앱을 계속 재시작하지 않도록 readiness와 liveness를 나눴다. 배포 후에는 HTTPS 화면과 공개 상품 API까지 확인한다. [실제 적용·검증](10-live-validation.md)에 확인 범위를 정리했다.
-
----
-
-[프로젝트 홈](../README.md) · [이전: 프로젝트 구성](01-architecture.md) · [다음: 모니터링과 실습 결과](03-monitoring-and-tests.md)
+애플리케이션 자동 배포와 Terraform 인프라 적용은 별도입니다. 이 문서 최신화 PR은 앱·Terraform 설정을 바꾸지 않으며 AWS 배포 시험도 수행하지 않습니다.

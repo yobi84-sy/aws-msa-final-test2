@@ -28,3 +28,15 @@ output "s3_endpoint_id" {
   value = aws_vpc_endpoint.s3.id
 }
 
+output "private_route_table_ids" {
+  value = aws_route_table.private[*].id
+}
+
+output "nat_gateway_ids" {
+  value = aws_nat_gateway.main[*].id
+}
+
+output "nat_public_ips" {
+  value = aws_eip.nat[*].public_ip
+}
+

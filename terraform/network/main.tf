@@ -152,7 +152,7 @@ resource "aws_eip" "nat" {
   }
 }
 
-# 각 AZ의 퍼블릭 서브넷에 NAT를 배치한다. 임의 NAT 선택/자동 장애 전환이 아니다.
+# 각 AZ의 퍼블릭 서브넷에 NAT를 배치한다. 장애 우회는 별도 nat_autofailover 제어기가 담당한다.
 resource "aws_nat_gateway" "main" {
   count         = length(var.availability_zones)
   allocation_id = aws_eip.nat[count.index].id
@@ -191,6 +191,13 @@ resource "aws_route" "private_nat" {
   route_table_id         = aws_route_table.private[count.index].id
   destination_cidr_block = "0.0.0.0/0"
   nat_gateway_id         = aws_nat_gateway.main[count.index].id
+
+  lifecycle {
+    # Terraform creates/removes the route; only the controller owns its runtime
+    # target. Re-applying infra must not undo a verified bypass during a fault.
+    # When disabling the controller, restore and verify native routes first.
+    ignore_changes = [nat_gateway_id]
+  }
 }
 
 # Retain the existing AZ-a resources if an older state is used. Fresh installs

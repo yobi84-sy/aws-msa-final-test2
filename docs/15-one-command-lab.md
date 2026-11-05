@@ -14,9 +14,9 @@ Set-ExecutionPolicy -Scope Process RemoteSigned
 |---|---|
 | `Install-Lab.ps1` | 설정 입력 → state → AWS 기반 → EKS 도구 → 관리자 → 검증한 이미지 → 앱 → DNS·메일 → 기본 검증 |
 | `Verify-Lab.ps1` | 기본은 조회만. 비밀번호 회전·CPU 부하 시험은 별도 옵션과 영향 승인 필요 |
-| `Remove-Lab.ps1` | 앱 → ALB·EBS → 도구 → AWS 기반 → 잔여 확인 → state 버킷까지 정리 |
+| `Remove-Lab.ps1` | 게시·NAT 제어기 정지 → 앱 → ALB·EBS → 도구 → AWS 기반 → 잔여 확인 → state 버킷까지 정리 |
 
-**2026-10-21에 설치·보존·복원·최신 배포·전체 삭제를 실제 실행했습니다.** ALB 상태 확인과 CloudTrail 지연 로그 때문에 재개한 구간이 있고, 빈 SQS 목록 처리 오류를 수정했습니다. 새 자동 재시도 로직은 모의 검증 범위이며 실배포 확인은 별도로 필요합니다. [실제 결과와 증거 구분](17-validation-20261021.md)
+**현재 출발점은 main입니다.** 2026-10-21 설치·보존·복원·배포·전체 삭제 기록과 이후 10월 전체 실행, 11월 2일 NAT 2개·RDS Multi-AZ 구축·배포 시연을 구분합니다. 이전 실행에는 ALB 준비·CloudTrail 지연 로그에 따른 재개와 오류 보완이 있었습니다. 이후 실제 실행 성공이 모든 자동 재시도 분기를 장애 주입으로 재검증했다는 뜻은 아닙니다. [최신 검증 범위](21-current-validation.md) · [10월 21일 원래 기록](17-validation-20261021.md)
 
 ## 1. 준비
 
@@ -49,7 +49,7 @@ AWS는 계정 `021158485482`, profile `eks-user`, 서울 리전으로 제한합�
 .\Install-Lab.ps1 -Execute -ApprovePlans
 ```
 
-EKS·t3.medium 시작 3대/최대 6대·RDS·NAT·저장소 비용이 발생합니다. AWS 무료 크레딧 여부와는 별개로 과금 리소스가 실제 생성됩니다. 운영 알림 SNS 구독 메일의 확인 링크도 직접 눌러야 합니다.
+EKS·t3.medium 시작 3대/최대 6대·RDS·NAT·저장소 비용이 발생합니다. NAT 자동 우회는 기본 활성화이며 별도 t3.nano 검사기 4대와 SSM Endpoint 등 추가 비용이 있습니다. [NAT 통합 범위](22-nat-autofailover.md)를 확인하세요. AWS 무료 크레딧 여부와는 별개로 과금 리소스가 실제 생성됩니다. 운영 알림 SNS 구독 메일의 확인 링크도 직접 눌러야 합니다.
 
 ### 최초 설치와 이후 승인 배포의 차이
 
@@ -83,13 +83,14 @@ EKS·t3.medium 시작 3대/최대 6대·RDS·NAT·저장소 비용이 발생합�
 현재 EKS의 허용 IP 안에서 조회합니다. 검증 명령이 임의로 API 접근 범위를 넓히지는 않습니다. 다음 항목을 확인하고 `.lab/runtime/verification.json`에 결과를 저장합니다.
 
 - 노드 Ready·medium·AZ별 범위, RDS 비공개·암호화·available
+- NAT 제어기 예약·최근 관찰·외부 IP와 실제 라우트 일치. 정상 우회도 최신 근거가 있어야 통과
 - 모니터링 PVC Bound, ESO Ready
 - 공유 ALB 한 개와 모든 대상 그룹의 healthy
 - Argo 실제 revision, 다섯 앱 이미지·준비 복제 수
 - HTTPS·HTML·상품 API, 최근 DB 비밀번호 전달 Job의 세 서비스 READY/PASS
 - SQS 메일 소비자 Enabled, SES 주소 인증, 관리자 Secret과 Lambda 수신 설정 일치
 
-**기본 PASS가 실제 구매·메일함 도착·모든 네트워크 경로·무중단 운영까지 증명하지는 않습니다.** 웹에서 구매자 주문 확인 메일과 관리자 신규 주문 알림을 각각 확인하고, 회원/상품/주문 데이터 유지도 별도 실습합니다. GitHub 호스트 러너는 현재 EKS의 PC IP 제한에 막힐 수 있어 원격 deploy-check를 임의로 켜지 않습니다. 설치 과정의 기본 검증은 실행 PC에서 자동 수행합니다.
+**기본 PASS가 실제 구매·메일함 도착·모든 네트워크 경로·무중단 운영까지 증명하지는 않습니다.** 웹에서 구매자 주문 확인 메일과 관리자 신규 주문 알림을 각각 확인하고, 회원/상품/주문 데이터 유지도 별도 실습합니다. 설치 과정의 기본 검증은 실행 PC에서 수행합니다. 이후 원격 deploy-check는 GitHub 호스트 러너가 사설 API에 직접 접근하는 대신 VPC CodeBuild를 사용하며 `ENABLE_DEPLOY_CHECKS` 조건을 따릅니다. [현재 배포 경로](02-deployment.md)
 
 ### 영향 있는 선택 시험
 

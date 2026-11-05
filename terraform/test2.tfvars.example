@@ -7,3 +7,9 @@ customer_email_test_recipients = ["verified-customer@example.com"]
 manage_ses_identities = false
 # 발신자/샌드박스 수신자 인증 확인 전에는 false 유지.
 customer_email_enabled = false
+
+# NAT 자동 우회·복귀 기본 활성화: 별도 t3.nano 4대, SSM Endpoint 2종 등 추가 비용.
+# 실제 AWS 검증은 별도 최소 시험의 AZ-a 방향이며 이 양방향 통합판은 재시험 전입니다.
+nat_autofailover_enabled = true
+# 기존 public/app/DB와 겹치지 않는 VPC 내부 회복 검사 서브넷
+nat_health_subnet_cidrs = ["10.42.31.0/24", "10.42.32.0/24"]

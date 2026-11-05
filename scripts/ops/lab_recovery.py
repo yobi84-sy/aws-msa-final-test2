@@ -190,12 +190,14 @@ def preserve(runner, settings, journal, approved):
         prepare_secrets(runner, destroy=True)
         apply_plan(runner, 'terraform-k8s', 'preserve-tools', destroy=True, approved=approved, directory=FOLDER)
     journal.stage('remove-tools', tools)
+    from nat_failover import quiesce as quiesce_nat
+    journal.stage('pause-nat-controller', lambda: quiesce_nat(runner, state(runner, 'terraform')), always=True)
     journal.stage('remove-execution', lambda: scoped_plan(runner, 'preserve-execution', variables, targets=TARGETS, destroy=True, approved=approved))
     if cluster(runner):
         raise ValueError('Preserve did not remove the cluster')
     details['preserved'] = True
     journal.save()
-    print('PRESERVED: EKS/DB removed; snapshots, product S3, images, messaging, state and VPC/NAT retained (ongoing charges).', flush=True)
+    print('PRESERVED: EKS/DB removed; snapshots, product S3, images, messaging, state, VPC/NAT and NAT probes/endpoints retained (ongoing charges). NAT controller paused.', flush=True)
 
 
 def restore_monitoring(runner, journal, value):
@@ -254,6 +256,7 @@ def resume(runner, settings, journal, approved):
     variables = infra_variables(settings, public_ip())
     variables['db_snapshot_identifier'] = details['dbSnapshot']
     journal.stage('restore-infra', lambda: apply_plan(runner, 'terraform', 'restore-infra', variables, approved=approved, directory=FOLDER))
+    runner.run([sys.executable, 'scripts/ops/nat_failover.py', '--wait-ready'])
     live = connect(runner, FOLDER)
     if live['resourcesVpcConfig']['vpcId'] != value['vpc']:
         raise ValueError('Recovery must use the retained VPC')
